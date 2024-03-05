@@ -2,7 +2,7 @@
 
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) 
-<img src="https://img.shields.io/badge/Swift-5.8_5.9_5.10-Orange?style=flat-square" /> 
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FGenaro-Chris%2Fswift-concurrency-primitives%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives)
 <img src="https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey.svg" />
 
 A concurrency primitive package written in swift for swift developers
