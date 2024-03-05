@@ -1,0 +1,28 @@
+name: Windows 
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  windows_test:
+    name: Execute tests on Windows
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2019
+            swift_version: "5.9"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          branch: swift-${{ matrix.swift_version }}-release
+          tag: ${{ matrix.swift_version }}-RELEASE
+      - name: Building in debug mode
+        run: swift build
+      - name: Running tests in debug mode
+        run: swift test
