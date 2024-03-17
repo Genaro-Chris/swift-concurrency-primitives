@@ -23,8 +23,11 @@ public final class CustomGlobalExecutor: SerialExecutor {
         self.pool = pool
     }
 
-    static let shared = CustomGlobalExecutor(SimpleThreadPool.globalPool)
-
+    #if canImport(Glibc) || canImport(Darwin)
+        static let shared = CustomGlobalExecutor(SpecialThreadPool.globalPool)
+    #else
+        static let shared = CustomGlobalExecutor(SimpleThreadPool.globalPool)
+    #endif
 }
 
 /// Does what the name implies

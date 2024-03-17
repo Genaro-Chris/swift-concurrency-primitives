@@ -43,38 +43,38 @@ This package provides various basic concurrency primitives which can be categori
 
 This package also provides some constructs that synchronize concurrent accesses to a critical code section in order to avoid data race bugs
 
-- [Lock](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/lock)
-- [Locked](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/locked)
+- [Lock](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/lock)
+- [Locked](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/locked)
   
 ### Threads Co-ordination
 
 This package even provide some constructs for co-ordination for threads by waiting for all threads to finish their execution
 
-- [Notifier](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/notifier)
-- [WaitGroup](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/waitgroup)
+- [Notifier](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/notifier)
+- [WaitGroup](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/waitgroup)
 
 
 ### Message Passing 
 
 This package provides some concurrency constructs that enable threads share memory by communicating values as message.
 
-- [Queue](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/queue)
-- [OneShotChannel](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/oneshotchannel)
-- [UnboundedChannel](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/unboundedchannel)  
+- [Queue](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/queue)
+- [OneShotChannel](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/oneshotchannel)
+- [UnboundedChannel](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/unboundedchannel)  
 
 ### ThreadPool
 
 This package provides some concurrency construct that efficiently manage a fized size of worker threads ready to execute code.
 
-- [SingleThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/singlethread)
-- [MultiThreadedPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/multithreadedpool)
+- [SingleThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/singlethread)
+- [MultiThreadedPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/multithreadedpool)
 
 ### Call Once
 
 A synchronization primitive which provides a way of executing code exactly once regardless of how many times it was called in a thread-safe manner
 
-- [Once](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/once)
-- [OnceState](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/oncestate)
+- [Once](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/once)
+- [OnceState](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/oncestate)
 
 And many more others
 

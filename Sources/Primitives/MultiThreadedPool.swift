@@ -35,9 +35,8 @@ public final class MultiThreadedPool {
         }
 
         mutating func random() -> Int {
-            guard !randomValues.isEmpty else {
+            if randomValues.isEmpty {
                 randomValues = (0 ..< max).shuffled()
-                return randomValues.removeFirst()
             }
             return randomValues.removeFirst()
         }
@@ -90,7 +89,7 @@ public final class MultiThreadedPool {
         }
         self.waitType = waitType
         handles = (0 ..< size).map { index in
-            return WorkerThread("ThreadPool #\(index)")
+            return WorkerThread("Thread #\(index)")
         }
         notifier = Notifier(size: size)!
         randomGenerator = Locked(RandomGenerator(to: size))

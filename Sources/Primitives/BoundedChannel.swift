@@ -49,7 +49,7 @@ public struct BoundedChannel<Element> {
             Thread.yield()
         }
 
-        if bufferCount.wrappingIncrementThenLoad(ordering: .acquiringAndReleasing)
+        if bufferCount.wrappingIncrementThenLoad(ordering: .sequentiallyConsistent)
             == capacity {
             _ = readyToSend.exchange(false, ordering: .acquiringAndReleasing)
         }
@@ -63,7 +63,7 @@ public struct BoundedChannel<Element> {
         switch (closed.load(ordering: .relaxed), isEmpty) {
         case (true, false):
             readyToSend.store(true, ordering: .releasing)
-            bufferCount.wrappingDecrement(ordering: .acquiringAndReleasing)
+            bufferCount.wrappingDecrement(ordering: .sequentiallyConsistent)
             return buffer.updateWhileLocked { $0.dequeue() }
         case (true, true): return nil
         default: ()
@@ -73,7 +73,7 @@ public struct BoundedChannel<Element> {
             switch (closed.load(ordering: .relaxed), isEmpty) {
             case (true, false):
                 readyToSend.store(true, ordering: .releasing)
-                bufferCount.wrappingDecrement(ordering: .acquiringAndReleasing)
+                bufferCount.wrappingDecrement(ordering: .sequentiallyConsistent)
                 return buffer.updateWhileLocked { $0.dequeue() }
             case (true, true): return nil
             default: Thread.yield()
@@ -81,7 +81,7 @@ public struct BoundedChannel<Element> {
         }
 
         readyToSend.store(true, ordering: .relaxed)
-        bufferCount.wrappingDecrement(ordering: .acquiringAndReleasing)
+        bufferCount.wrappingDecrement(ordering: .sequentiallyConsistent)
         return buffer.updateWhileLocked { $0.dequeue() }
     }
 
@@ -112,11 +112,11 @@ extension BoundedChannel {
     }
 
     public var length: Int {
-        return buffer.count
+        return bufferCount.load(ordering: .relaxed)
     }
 
     public var isEmpty: Bool {
-        return buffer.isEmpty
+        return bufferCount.load(ordering: .relaxed) == 0
     }
 }
 

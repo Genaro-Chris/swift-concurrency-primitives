@@ -32,7 +32,7 @@ final class WorkerThread: Thread {
         queue <- body
     }
 
-    init(_ name: String = Thread.current.name ?? "Thread") {
+    init(_ name: String) {
         latch = Latch(size: 1)!
         queue = TaskQueue()
         threadName = name
