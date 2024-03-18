@@ -12,20 +12,19 @@ on:
 jobs:
   build:
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
-      fail-fast: true
       matrix:
         os: [macos-latest]
         swift: ["5.8", "5.9"]
-
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: swift-actions/setup-swift@v1
-      with:
-        swift-version: ${{ matrix.swift }}
-    - uses: actions/checkout@v3
-    - name: Build
-      run: swift build
-    - name: Test
-      run: swift test
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: ${{ matrix.swift }}
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Run tests
+        run: swift test
