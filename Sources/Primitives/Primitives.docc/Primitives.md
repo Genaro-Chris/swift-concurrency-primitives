@@ -38,7 +38,7 @@ This package provides some concurrency constructs that enable threads share memo
 This package provides some concurrency constructs that efficiently manage a fized size of worker threads ready to execute code. 
 
 - ``SingleThread``
-- ``MultiThreadedPool``
+- ``WorkerPool``
 
 ### Call Once
 

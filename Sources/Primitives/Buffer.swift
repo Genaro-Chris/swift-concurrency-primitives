@@ -9,6 +9,7 @@ struct Buffer<ElementType> {
         buffer.count
     }
 
+    @inlinable
     var isEmpty: Bool {
         buffer.isEmpty
     }

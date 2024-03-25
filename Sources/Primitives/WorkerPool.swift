@@ -11,36 +11,14 @@ import Foundation
 /// 
 /// Example
 /// ```swift
-/// let pool = MultiThreadedPool(size: 4, waitType: .waitForAll)!
+/// let pool = WorkerPool(size: 4, waitType: .waitForAll)!
 /// for index in 1 ... 10 {
 ///    pool.submit {
 ///         // some heavy CPU bound work
 ///    }
 /// }
 /// ```
-public final class MultiThreadedPool {
-
-    // This random number that generates random numbers uniquely from a range of number
-    // ensuring that no number is generated twice before all the numbers from that
-    // range has been generated
-    struct RandomGenerator {
-
-        private var randomValues: [Int]
-
-        private let max: Int
-
-        init(to size: Int) {
-            randomValues = (0 ..< size).shuffled()
-            max = size
-        }
-
-        mutating func random() -> Int {
-            if randomValues.isEmpty {
-                randomValues = (0 ..< max).shuffled()
-            }
-            return randomValues.removeFirst()
-        }
-    }
+public final class WorkerPool {
 
     let waitType: WaitType
 
@@ -48,7 +26,7 @@ public final class MultiThreadedPool {
 
     let notifier: Notifier
 
-    let randomGenerator: Locked<RandomGenerator>
+    let lock: Lock
 
     let started: OnceState
 
@@ -56,9 +34,7 @@ public final class MultiThreadedPool {
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        randomGenerator.updateWhileLocked { [handles] gen in
-            handles[gen.random()].submit(work)
-        }
+        handles.randomElement()?.submit(work)
     }
 
     /// Submits work to a specific thread in the pool
@@ -78,21 +54,21 @@ public final class MultiThreadedPool {
         return true
     }
 
-    /// Initializes an instance of the `MultiThreadedPool` type
+    /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
     ///   - waitType: value of `WaitType`
     /// - Returns: nil if the size argument is less than one
-    public init?(size: Int, waitType: WaitType) {
+    public init(size: Int, waitType: WaitType) {
         guard size > 0 else {
-            return nil
+            fatalError("Cannot initialize an instance of WorkerPool with 0 thread")
         }
         self.waitType = waitType
         handles = (0 ..< size).map { index in
             return WorkerThread("Thread #\(index)")
         }
         notifier = Notifier(size: size)!
-        randomGenerator = Locked(RandomGenerator(to: size))
+        lock = Lock()
         started = OnceState()
     }
 
@@ -111,15 +87,15 @@ public final class MultiThreadedPool {
     }
 }
 
-extension MultiThreadedPool {
+extension WorkerPool {
 
     /// This represents a global multithreaded pool similar to `DispatchQueue.global()`
     /// as it contains the same number of threads as the total number of processor count
-    public static let globalPool = MultiThreadedPool(
-        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .waitForAll)!
+    public static let globalPool = WorkerPool(
+        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .waitForAll)
 }
 
-extension MultiThreadedPool: ThreadPool {
+extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping @Sendable () -> Void) {
         submitRandomly(body)
@@ -160,13 +136,13 @@ extension MultiThreadedPool: ThreadPool {
     }
 }
 
-extension MultiThreadedPool: CustomStringConvertible {
+extension WorkerPool: CustomStringConvertible {
     public var description: String {
         "ThreadPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
     }
 }
 
-extension MultiThreadedPool: CustomDebugStringConvertible {
+extension WorkerPool: CustomDebugStringConvertible {
     public var debugDescription: String {
         let threadNames = handles.map { handle in
             " - " + (handle.name ?? "ThreadPool") + "\n"

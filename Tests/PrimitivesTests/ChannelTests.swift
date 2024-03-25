@@ -45,7 +45,7 @@ final class ChannelTests: XCTestCase {
     func test_bounded_channel() {
         let channel = BoundedChannel<Int>(size: 3)!
         let handle = SingleThread(waitType: .waitForAll)
-        let pool = MultiThreadedPool(size: 4, waitType: .waitForAll)!
+        let pool = WorkerPool(size: 4, waitType: .waitForAll)
         handle.submit {
             let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             var array = [Int]()
@@ -74,7 +74,7 @@ final class ChannelTests: XCTestCase {
 
     func test_unbounded_channel() {
         let channel = UnboundedChannel<String>.init()
-        let pool = MultiThreadedPool(size: 4, waitType: .waitForAll)!
+        let pool = WorkerPool(size: 4, waitType: .waitForAll)
         (0 ... 9).forEach { index in
             pool.submit { [channel] in
                 channel <- "\(index)"

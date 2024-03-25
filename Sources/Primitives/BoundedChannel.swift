@@ -41,7 +41,7 @@ public struct BoundedChannel<Element> {
             return false
         }
         while !readyToSend.weakCompareExchange(
-            expected: true, desired: true, ordering: .acquiringAndReleasing
+            expected: true, desired: true, ordering: .relaxed
         ).exchanged {
             if closed.load(ordering: .relaxed) {
                 return false
@@ -51,7 +51,7 @@ public struct BoundedChannel<Element> {
 
         if bufferCount.wrappingIncrementThenLoad(ordering: .sequentiallyConsistent)
             == capacity {
-            _ = readyToSend.exchange(false, ordering: .acquiringAndReleasing)
+            _ = readyToSend.exchange(false, ordering: .relaxed)
         }
 
         buffer.updateWhileLocked { $0.enqueue(item) }
@@ -62,17 +62,17 @@ public struct BoundedChannel<Element> {
     public func dequeue() -> Element? {
         switch (closed.load(ordering: .relaxed), isEmpty) {
         case (true, false):
-            readyToSend.store(true, ordering: .releasing)
+            readyToSend.store(true, ordering: .relaxed)
             bufferCount.wrappingDecrement(ordering: .sequentiallyConsistent)
             return buffer.updateWhileLocked { $0.dequeue() }
         case (true, true): return nil
         default: ()
         }
 
-        while isEmpty {
+        while buffer.isEmpty {
             switch (closed.load(ordering: .relaxed), isEmpty) {
             case (true, false):
-                readyToSend.store(true, ordering: .releasing)
+                readyToSend.store(true, ordering: .relaxed)
                 bufferCount.wrappingDecrement(ordering: .sequentiallyConsistent)
                 return buffer.updateWhileLocked { $0.dequeue() }
             case (true, true): return nil
@@ -112,11 +112,11 @@ extension BoundedChannel {
     }
 
     public var length: Int {
-        return bufferCount.load(ordering: .relaxed)
+        return buffer.count
     }
 
     public var isEmpty: Bool {
-        return bufferCount.load(ordering: .relaxed) == 0
+        return buffer.isEmpty
     }
 }
 

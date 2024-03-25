@@ -44,7 +44,7 @@ final class WorkerThread: Thread {
                     work()
                     isBusy.store(false, ordering: .relaxed)
                 } else {
-                    Thread.sleep(forTimeInterval: 0.0010)
+                    Thread.sleep(forTimeInterval: 0.00010)
                 }
             } while !Thread.current.isCancelled
         }

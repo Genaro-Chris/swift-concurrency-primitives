@@ -1,39 +1,31 @@
-// 
-final class PThreadBarrier {
-    private let condition = Condition()
-    private let mutex = Mutex()
-    private var blockedThreadIndex = 0
-    private let threadCount: Int
+#if os(macOS)
+    import Darwin
+#else
+    import Glibc
+#endif
 
-    init?(count: Int) {
-        if count < 1 {
-            return nil
-        }
-        threadCount = count
+//
+class PThreadBarrier {
+    let barrier: UnsafeMutablePointer<pthread_barrier_t>
+    let barrierAttr: UnsafeMutablePointer<pthread_barrierattr_t>
+
+    public init(count: UInt32) {
+        barrier = UnsafeMutablePointer.allocate(capacity: 1)
+        barrier.initialize(to: pthread_barrier_t())
+        barrierAttr = UnsafeMutablePointer.allocate(capacity: 1)
+        barrierAttr.initialize(to: pthread_barrierattr_t())
+        pthread_barrier_init(barrier, barrierAttr, count)
     }
 
-    // Decrements the counter then blocks the current thread until counter is 0
+    deinit {
+        barrierAttr.deinitialize(count: 1)
+        barrier.deinitialize(count: 1)
+        barrierAttr.deallocate()
+        barrier.deallocate()
+    }
+
+     // Decrements the counter then blocks the current thread until counter is 0
     func arriveAndWait() {
-        mutex.whileLocked {
-            blockedThreadIndex += 1
-            guard blockedThreadIndex != threadCount else {
-                blockedThreadIndex = 0
-                condition.broadcast()
-                return
-            }
-            condition.wait(mutex: mutex, condition: blockedThreadIndex == 0)
-        }
-    }
-
-    // Decrements the counter without blocking
-    func arriveAlone() {
-        mutex.whileLocked {
-            blockedThreadIndex += 1
-            guard blockedThreadIndex != threadCount else {
-                blockedThreadIndex = 0
-                condition.broadcast()
-                return
-            }
-        }
+        pthread_barrier_wait(barrier)
     }
 }

@@ -41,7 +41,7 @@ enum Program {
 
         try await Task.sleep(nanoseconds: 2_000_500_000)
 
-        async let _ = withDiscardingTaskGroup { group in
+        async let group: () = withDiscardingTaskGroup { group in
             for _ in 0 ... 5 {
                 group.addTask {
                     Task { @GlobalActor in globalActorCounter += 1 }
@@ -56,9 +56,11 @@ enum Program {
 
         try await Task.sleep(for: .microseconds(300), clock: .suspending)
 
+        await group
+
         print("Count for \(type(of: specialActorInstance)): \(await specialActorInstance.count)")
         print("Count for \(type(of: lockInstance)): \(await lockInstance.count)")
         print("Count for \(type(of: normalActor)): \(await normalActor.count)")
-        print("Count for \(await globalActorCounter)")
+        print("Count for globalActorConter \(await globalActorCounter)")
     }
 }

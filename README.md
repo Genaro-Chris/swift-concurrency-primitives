@@ -67,7 +67,7 @@ This package provides some concurrency constructs that enable threads share memo
 This package provides some concurrency construct that efficiently manage a fized size of worker threads ready to execute code.
 
 - [SingleThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/singlethread)
-- [MultiThreadedPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/multithreadedpool)
+- [WorkerPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/WorkerPool)
 
 ### Call Once
 

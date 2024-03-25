@@ -7,7 +7,7 @@ public final class SimpleThreadPool: ThreadPool {
 
     private let queue: any Channel<TaskItem>
 
-    private let threadHandles: [NamedThread]
+    private let threadHandles: [UnnamedThread]
 
     private let barrier: Barrier
 
@@ -77,9 +77,9 @@ public final class SimpleThreadPool: ThreadPool {
 
 private func start(
     queue: some Channel<TaskItem>, size: Int
-) -> [NamedThread] {
-    (0 ..< size).map { index in
-        NamedThread(name: "SimpleThread #\(index)") {
+) -> [UnnamedThread] {
+    (0 ..< size).map { _ in
+        UnnamedThread {
             repeat {
                 if let operation = queue.dequeue() {
                     operation()

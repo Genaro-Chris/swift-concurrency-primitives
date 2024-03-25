@@ -1,5 +1,5 @@
 import Foundation
-@_spi(ThreadSync) import Primitives
+import Primitives
 
 /// Special ThreadPool that uses pthread utilties such as condition and mutex
 public final class SpecialThreadPool: ThreadPool {
@@ -10,7 +10,7 @@ public final class SpecialThreadPool: ThreadPool {
 
     private let onceFlag: OnceState
 
-    private let gen: Locked<RandomGenerator>
+    private let gen: Locker<RandomGenerator>
 
     private let wait: WaitType
 
@@ -25,7 +25,7 @@ public final class SpecialThreadPool: ThreadPool {
     public func pollAll() {
         threadHandles.forEach { handle in
             handle.submit { [barrier] in
-                barrier.arriveAlone()
+                barrier.arriveAndWait()
             }
         }
         barrier.arriveAndWait()
@@ -38,10 +38,10 @@ public final class SpecialThreadPool: ThreadPool {
             return nil
         }
         wait = waitType
-        barrier = PThreadBarrier(count: size + 1)!
+        barrier = PThreadBarrier(count: UInt32(size + 1))
         onceFlag = OnceState()
         threadHandles = start(size: size)
-        gen = Locked(RandomGenerator(to: size))
+        gen = Locker(RandomGenerator(to: size))
     }
 
     public func submit(_ body: @escaping TaskItem) {
