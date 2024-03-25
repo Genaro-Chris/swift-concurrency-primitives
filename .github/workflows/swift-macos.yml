@@ -21,6 +21,6 @@ jobs:
         with:
           swift-version: ${{ matrix.swift }}
       - name: Build
-        run: swift build --build-tests
+        run: xcrun --toolchain ${{ env.TOOLCHAINS }} swift build --build-tests
       - name: Run tests
-        run: swift test
+        run: xcrun --toolchain ${{ env.TOOLCHAINS }} swift test
