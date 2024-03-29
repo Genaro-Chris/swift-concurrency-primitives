@@ -92,7 +92,7 @@ extension WorkerPool {
 
 extension WorkerPool: ThreadPool {
 
-    public func async(_ body: @escaping @Sendable WorkItem) {
+    public func async(_ body: @escaping SendableWorkItem) {
         submitRandomly(body)
     }
 

@@ -48,7 +48,7 @@ public final class SingleThread: ThreadPool {
         handle.submit(body)
     }
 
-    public func async(_ body: @escaping @Sendable WorkItem) {
+    public func async(_ body: @escaping SendableWorkItem) {
         submit(body)
     }
 

@@ -3,6 +3,8 @@ import Foundation
 
 public typealias WorkItem = () -> Void
 
+public typealias SendableWorkItem = @Sendable () -> Void
+
 final class WorkerThread: Thread {
 
     typealias TaskQueue = Queue<WorkItem>
