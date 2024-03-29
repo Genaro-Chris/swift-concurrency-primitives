@@ -8,65 +8,53 @@ import Foundation
 /// This is similar to the ``Latch`` type with a major difference of `Barrier` types are reusable:
 /// once a group of arriving threads are unblocked, the barrier can be reused
 @_spi(ThreadSync)
-@frozen
-public struct Barrier {
+@_fixed_layout
+public final class Barrier {
 
-    @usableFromInline let blockedThreadsCount: Locked<Int>
+    private let condition: Condition
 
-    @usableFromInline let barrier: ManagedAtomic<Bool>
+    private let mutex: Mutex
 
-    @usableFromInline let threadCount: Int
+    private var blockedThreadsCount: Int
+
+    private let threadCount: Int
 
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
     /// - Returns: nil if the `size` argument is less than one
     public init?(size: Int) {
-        guard size > 0 else {
+        if size < 1 {
             return nil
         }
-        barrier = ManagedAtomic(false)
-        blockedThreadsCount = Locked(size)
+        condition = Condition()
+        mutex = Mutex()
+        blockedThreadsCount = 0
         threadCount = size
     }
 
     /// Increments the count of an `Barrier` instance without blocking the current thread
-    @inlinable
-    public func decrementAlone() {
-        blockedThreadsCount.updateWhileLocked { index in
-            guard index != 0 else {
-                index = threadCount
-                barrier.store(true, ordering: .releasing)
+    public func arriveAlone() {
+        mutex.whileLocked {
+            blockedThreadsCount += 1
+            guard blockedThreadsCount != threadCount else {
+                blockedThreadsCount = 0
+                condition.broadcast()
                 return
             }
-            index -= 1
-            if index == 0 {
-                index = threadCount
-                barrier.store(true, ordering: .releasing)
-            }
         }
-
     }
 
     /// Increments the count of the `Barrier` instance and
     /// blocks the current thread until the instance's count drops to zero
-    @inlinable
-    public func decrementAndWait() {
-        _ = barrier.compareExchange(
-            expected: true, desired: false, ordering: .acquiringAndReleasing)
-        blockedThreadsCount.updateWhileLocked { index in
-            guard index != 0 else {
-                index = threadCount
-                barrier.store(true, ordering: .releasing)
+    public func arriveAndWait() {
+        mutex.whileLocked {
+            blockedThreadsCount += 1
+            guard blockedThreadsCount != threadCount else {
+                blockedThreadsCount = 0
+                condition.broadcast()
                 return
             }
-            index -= 1
-            if index == 0 {
-                index = threadCount
-                barrier.store(true, ordering: .releasing)
-            }
-        }
-        while !barrier.load(ordering: .acquiring) {
-            Thread.yield()
+            condition.wait(mutex: mutex, condition: blockedThreadsCount == 0)
         }
     }
 }

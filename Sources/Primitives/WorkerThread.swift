@@ -1,26 +1,23 @@
 import Atomics
 import Foundation
 
+public typealias WorkItem = () -> Void
+
 final class WorkerThread: Thread {
 
-    typealias TaskQueue = Queue<() -> Void>
-
-    private let latch: Latch
-
-    private let queue: TaskQueue
+    typealias TaskQueue = Queue<WorkItem>
 
     private let threadName: String
 
-    private let isBusy: UnsafeAtomic<Bool>
+    private let queue: TaskQueue
 
-    private let block: () -> Void
+    private let isBusy: ManagedAtomic<Bool>
 
-    override var name: String? {
-        get { threadName }
-        set {}
-    }
+    private let condition: Condition
 
-    public var isBusyExecuting: Bool {
+    private let mutex: Mutex
+
+    var isBusyExecuting: Bool {
         isBusy.load(ordering: .relaxed)
     }
 
@@ -28,40 +25,42 @@ final class WorkerThread: Thread {
         queue.isEmpty
     }
 
-    func submit(_ body: @escaping () -> Void) {
-        queue <- body
+    override var name: String? {
+        get { threadName }
+        set {}
     }
 
     init(_ name: String) {
-        latch = Latch(size: 1)!
-        queue = TaskQueue()
         threadName = name
-        isBusy = UnsafeAtomic.create(false)
-        block = { [queue, isBusy] in
-            repeat {
-                if let work = <-queue {
-                    isBusy.store(true, ordering: .relaxed)
-                    work()
-                    isBusy.store(false, ordering: .relaxed)
-                } else {
-                    Thread.sleep(forTimeInterval: 0.00010)
-                }
-            } while !Thread.current.isCancelled
-        }
+        queue = Queue()
+        isBusy = ManagedAtomic(false)
+        mutex = Mutex()
+        condition = Condition()
         super.init()
     }
 
+    func submit(_ body: @escaping WorkItem) {
+        mutex.whileLocked {
+            queue <- body
+            condition.signal()
+        }
+    }
+
+    fileprivate func dequeue() -> WorkItem? {
+        return mutex.whileLocked {
+            condition.wait(mutex: mutex, condition: !queue.isEmpty)
+            guard !queue.isEmpty else { return nil }
+            return queue.dequeue()
+        }
+    }
+
     override func main() {
-        block()
-        latch.decrementAlone()
+        while !isCancelled {
+            if let work = dequeue() {
+                isBusy.store(true, ordering: .relaxed)
+                work()
+                isBusy.store(false, ordering: .relaxed)
+            }
+        }
     }
-
-    func join() {
-        latch.waitForAll()
-    }
-
-    deinit {
-        isBusy.destroy()
-    }
-
 }

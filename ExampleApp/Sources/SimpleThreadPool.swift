@@ -15,21 +15,23 @@ public final class SimpleThreadPool: ThreadPool {
 
     private let wait: WaitType
 
+    private let isBusy: Locked<Bool>
+
     public static let globalPool: SimpleThreadPool =
         SimpleThreadPool(
             size: ProcessInfo.processInfo.processorCount, waitType: .waitForAll)!
 
     public var isBusyExecuting: Bool {
-       false
+        isBusy.updateWhileLocked { $0 }
     }
 
     public func pollAll() {
         (0 ..< threadHandles.count).forEach { _ in
             queue <- { [barrier] in
-                barrier.decrementAndWait()
+                barrier.arriveAlone()
             }
         }
-        barrier.decrementAndWait()
+        barrier.arriveAndWait()
     }
 
     public init?(
@@ -42,7 +44,8 @@ public final class SimpleThreadPool: ThreadPool {
         queue = UnboundedChannel()
         barrier = Barrier(size: size + 1)!
         onceFlag = OnceState()
-        threadHandles = start(queue: queue, size: size)
+        isBusy = Locked(false)
+        threadHandles = start(queue: queue, size: size, isBusy: isBusy)
     }
 
     public func submit(_ body: @escaping TaskItem) {
@@ -76,13 +79,15 @@ public final class SimpleThreadPool: ThreadPool {
 }
 
 private func start(
-    queue: some Channel<TaskItem>, size: Int
+    queue: some Channel<TaskItem>, size: Int, isBusy: Locked<Bool>
 ) -> [UnnamedThread] {
     (0 ..< size).map { _ in
         UnnamedThread {
             repeat {
                 if let operation = queue.dequeue() {
+                    isBusy.updateWhileLocked { $0 = true }
                     operation()
+                    isBusy.updateWhileLocked { $0 = false }
                 }
             } while !Thread.current.isCancelled
         }

@@ -1,6 +1,10 @@
 import Foundation
 @preconcurrency import Primitives
 
+public typealias TaskItem = () -> Void
+
+public typealias SendableTaskItem = @Sendable () -> Void
+
 /// The class that replaces the global concurrency by enqueueing jobs onto some `ThreadPool` type
 public final class CustomGlobalExecutor: SerialExecutor {
     public func asUnownedSerialExecutor() -> UnownedSerialExecutor {
@@ -23,11 +27,7 @@ public final class CustomGlobalExecutor: SerialExecutor {
         self.pool = pool
     }
 
-    #if canImport(Glibc) || canImport(Darwin)
-        static let shared = CustomGlobalExecutor(WorkerPool.globalPool)
-    #else
-        static let shared = CustomGlobalExecutor(SimpleThreadPool.globalPool)
-    #endif
+    static let shared = CustomGlobalExecutor(WorkerPool.globalPool)
 }
 
 /// Does what the name implies

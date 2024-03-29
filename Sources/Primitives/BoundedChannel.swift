@@ -7,6 +7,7 @@ import Foundation
 /// blocks on the sender's side if the buffer has reached that certain number
 @_spi(OtherChannels)
 @frozen
+@_eagerMove
 public struct BoundedChannel<Element> {
 
     @usableFromInline let buffer: Locked<Buffer<Element>>

@@ -41,14 +41,14 @@ public final class SingleThread: ThreadPool {
         handle.cancel()
     }
 
-    public func submit(_ body: @escaping () -> Void) {
+    public func submit(_ body: @escaping WorkItem) {
         started.runOnce {
             handle.start()
         }
         handle.submit(body)
     }
 
-    public func async(_ body: @escaping @Sendable () -> Void) {
+    public func async(_ body: @escaping @Sendable WorkItem) {
         submit(body)
     }
 
@@ -60,8 +60,8 @@ public final class SingleThread: ThreadPool {
         guard !handle.isEmpty && !isBusyExecuting else {
             return
         }
-        handle.submit { [barrier] in barrier.decrementAlone() }
-        barrier.decrementAndWait()
+        handle.submit { [barrier] in barrier.arriveAlone() }
+        barrier.arriveAndWait()
     }
 
     deinit {
@@ -75,7 +75,6 @@ public final class SingleThread: ThreadPool {
             pollAll()
             cancel()
         }
-        handle.join()
     }
 }
 

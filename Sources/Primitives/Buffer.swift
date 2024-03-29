@@ -1,7 +1,7 @@
 import Foundation
 
-@frozen @usableFromInline
-struct Buffer<ElementType> {
+@_fixed_layout @usableFromInline
+class Buffer<ElementType> {
 
     @usableFromInline var buffer: ContiguousArray<ElementType>
 
@@ -19,19 +19,19 @@ struct Buffer<ElementType> {
     }
 
     @inlinable
-    mutating func enqueue(_ item: ElementType) {
+    func enqueue(_ item: ElementType) {
         buffer.append(item)
     }
 
     @inlinable
-    mutating func dequeue() -> ElementType? {
+    func dequeue() -> ElementType? {
         guard !buffer.isEmpty else {
             return nil
         }
         return buffer.removeFirst()
     }
 
-    mutating func clear() {
+    func clear() {
         buffer.removeAll()
     }
 }

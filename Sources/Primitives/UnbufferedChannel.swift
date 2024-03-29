@@ -15,6 +15,7 @@ import Foundation
 /// `UnbufferedChannel` with a value will block until a dequeue operation have being done
 @_spi(OtherChannels)
 @frozen
+@_eagerMove
 public struct UnbufferedChannel<Element> {
 
     @usableFromInline let buffer: Locked<Element?>

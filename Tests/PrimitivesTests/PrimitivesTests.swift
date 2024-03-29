@@ -76,7 +76,7 @@ final class PrimitivesTests: XCTestCase {
                     total += 1
                 }
                 print("Wait blocker \(index)")
-                barrier?.decrementAndWait()
+                barrier?.arriveAndWait()
                 print("After blocker \(index)")
             }.start()
         }
@@ -96,7 +96,7 @@ final class PrimitivesTests: XCTestCase {
                     total += 1
                 }
                 print("Wait blocker \(index)")
-                barrier?.decrementAndWait()
+                barrier?.arriveAndWait()
                 print("After blocker \(index)")
                 waitGroup.done()
             }.start()
@@ -105,7 +105,7 @@ final class PrimitivesTests: XCTestCase {
             total += 1
         }
         print("Wait blocker \(10)")
-        barrier?.decrementAlone()
+        barrier?.arriveAlone()
         print("After blocker \(10)")
         waitGroup.waitForAll()
         XCTAssertEqual(total, 10)

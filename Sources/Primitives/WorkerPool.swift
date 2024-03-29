@@ -24,13 +24,11 @@ public final class WorkerPool {
 
     let handles: [WorkerThread]
 
-    let notifier: Notifier
-
-    let lock: Lock
+    let barrier: Barrier
 
     let started: OnceState
 
-    private func submitRandomly(_ work: @escaping () -> Void) {
+    private func submitRandomly(_ work: @escaping WorkItem) {
         started.runOnce {
             handles.forEach { $0.start() }
         }
@@ -42,8 +40,7 @@ public final class WorkerPool {
     ///   - index: index of the thread which should execute the work
     ///   - work: a non-throwing closure that takes and returns void
     /// - Returns: true if the work was submitted otherwise false
-    @discardableResult
-    public func submitToSpecificThread(at index: Int, _ work: @escaping () -> Void) -> Bool {
+    public func submitToSpecificThread(at index: Int, _ work: @escaping WorkItem) -> Bool {
         started.runOnce {
             handles.forEach { $0.start() }
         }
@@ -64,12 +61,11 @@ public final class WorkerPool {
             fatalError("Cannot initialize an instance of WorkerPool with 0 thread")
         }
         self.waitType = waitType
-        handles = (0 ..< size).map { index in
-            return WorkerThread("Thread #\(index)")
-        }
-        notifier = Notifier(size: size)!
-        lock = Lock()
+        barrier = Barrier(size: size + 1)!
         started = OnceState()
+        handles = (0 ..< size).map { index in
+            return WorkerThread("WorkerPool #\(index)")
+        }
     }
 
     deinit {
@@ -83,7 +79,6 @@ public final class WorkerPool {
             pollAll()
             cancel()
         }
-        handles.forEach { $0.join() }
     }
 }
 
@@ -97,11 +92,11 @@ extension WorkerPool {
 
 extension WorkerPool: ThreadPool {
 
-    public func async(_ body: @escaping @Sendable () -> Void) {
+    public func async(_ body: @escaping @Sendable WorkItem) {
         submitRandomly(body)
     }
 
-    public func submit(_ body: @escaping () -> Void) {
+    public func submit(_ body: @escaping WorkItem) {
         submitRandomly(body)
     }
 
@@ -124,33 +119,30 @@ extension WorkerPool: ThreadPool {
         guard started.hasExecuted else {
             return
         }
-        guard !handles.allSatisfy({ !$0.isBusyExecuting && $0.isEmpty }) else {
-            return
-        }
-        handles.forEach { [notifier] handle in
+        handles.forEach { [barrier] handle in
             handle.submit {
-                notifier.notify()
+                barrier.arriveAlone()
             }
         }
-        notifier.waitForAll()
+        barrier.arriveAndWait()
     }
 }
 
 extension WorkerPool: CustomStringConvertible {
     public var description: String {
-        "ThreadPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
+        "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
     }
 }
 
 extension WorkerPool: CustomDebugStringConvertible {
     public var debugDescription: String {
         let threadNames = handles.map { handle in
-            " - " + (handle.name ?? "ThreadPool") + "\n"
+            " - " + (handle.name ?? "WorkerPool") + "\n"
         }.reduce("") { acc, name in
             return acc + name
         }
         return
-            "ThreadPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
+            "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
             + ":\n" + threadNames
 
     }

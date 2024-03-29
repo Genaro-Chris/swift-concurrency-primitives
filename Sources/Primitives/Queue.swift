@@ -25,33 +25,36 @@ infix operator <-
 /// }
 /// ```
 @frozen
-public struct Queue<Element>: Sendable {
+public struct Queue<Element> {
 
-    @usableFromInline let buffer: Locked<Buffer<Element>>
+    @usableFromInline let buffer: Buffer<Element>
+
+    @usableFromInline let lock: Lock
 
     /// Initializes an instance of the `Queue` type
     @inlinable
     public init() {
-        buffer = Locked(Buffer())
+        buffer = Buffer()
+        lock = Lock()
     }
 
     /// Enqueue an item into the queue
     /// - Parameter item: item to be enqueued
     @inlinable
     public func enqueue(_ item: Element) {
-        buffer.updateWhileLocked { $0.enqueue(item) }
+        lock.whileLocked { buffer.enqueue(item) }
     }
 
     /// Dequeues an item from the queue
     /// - Returns: an item or nil if the queue is empty
     @inlinable
     public func dequeue() -> Element? {
-        return buffer.updateWhileLocked { $0.dequeue() }
+        return lock.whileLocked { buffer.dequeue() }
     }
 
     /// Clears the remaining enqueued items
     public func clear() {
-        buffer.updateWhileLocked { $0.clear() }
+        lock.whileLocked { buffer.clear() }
     }
 }
 
@@ -69,11 +72,11 @@ extension Queue {
 
     /// Number of items in the `Queue` instance
     public var length: Int {
-        return buffer.count
+        return lock.whileLocked { buffer.count }
     }
 
     /// Indicates if `Queue` instance is empty or not
     public var isEmpty: Bool {
-        return buffer.isEmpty
+        return lock.whileLocked { buffer.isEmpty }
     }
 }

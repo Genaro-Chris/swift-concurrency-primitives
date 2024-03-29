@@ -4,7 +4,7 @@ import Primitives
 /// a global variable isolated to `GlobalActor`
 @GlobalActor var globalActorCounter = 0
 
-/// Uses the `OneShotChannel` to simulate a promise type
+// Uses the `OneShotChannel` to simulate a promise type
 func getAsyncValueFromNonAsyncContext() {
     let channel = OneShotChannel<Int>()
     Task { [channel] in
@@ -43,12 +43,22 @@ enum Program {
 
         async let group: () = withDiscardingTaskGroup { group in
             for _ in 0 ... 5 {
-                group.addTask {
-                    Task { @GlobalActor in globalActorCounter += 1 }
-                    async let _ = specialActorInstance.increment(by: Int.random(in: 1 ... 10))
-                    async let _ = lockInstance.increment(by: Int.random(in: 1 ... 10))
-                    async let _ = normalActor.increment(by: Int.random(in: 1 ... 10))
-                }
+                #if swift(>=6.0) || compiler(>=6.0)
+                    group.addTask(executorPreference: globalConcurrentExecutor) {
+                        Task { @GlobalActor in globalActorCounter += 1 }
+                        async let _ = specialActorInstance.increment(by: Int.random(in: 1 ... 10))
+                        async let _ = lockInstance.increment(by: Int.random(in: 1 ... 10))
+                        async let _ = normalActor.increment(by: Int.random(in: 1 ... 10))
+                    }
+                #else
+                    group.addTask {
+                        Task { @GlobalActor in globalActorCounter += 1 }
+                        async let _ = specialActorInstance.increment(by: Int.random(in: 1 ... 10))
+                        async let _ = lockInstance.increment(by: Int.random(in: 1 ... 10))
+                        async let _ = normalActor.increment(by: Int.random(in: 1 ... 10))
+                    }
+                #endif
+
             }
         }
 
