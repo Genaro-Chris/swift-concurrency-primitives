@@ -42,7 +42,7 @@ public final class SimpleThreadPool: ThreadPool {
         }
         wait = waitType
         queue = UnboundedChannel()
-        barrier = Barrier(size: size + 1)!
+        barrier = Barrier(size: size + 1)
         onceFlag = OnceState()
         isBusy = Locked(false)
         threadHandles = start(queue: queue, size: size, isBusy: isBusy)

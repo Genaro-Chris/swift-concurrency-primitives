@@ -1,22 +1,22 @@
 import Atomics
 import Foundation
 
-/// A single use blocking threadsafe construct for multithreaded execution context which serves 
+/// A single use blocking threadsafe construct for multithreaded execution context which serves
 /// as a communication mechanism between two threads
-/// 
-/// This is useful in scenarios where a developer needs to send just a value safely across 
+///
+/// This is useful in scenarios where a developer needs to send just a value safely across
 /// miltithreaded context
-/// 
+///
 /// # Example
-/// 
+///
 /// ```swift
 /// func getIntAsync() async -> Int {
 ///     // perform some operation
 ///     return Int.random(in: 0 ... 1000)
 /// }
-/// 
+///
 /// let channel = OneShotChannel<Int>()
-/// Task.detached { 
+/// Task.detached {
 /// // This should be done on a detached task to avoid blocking the caller thread
 ///     channel <- (await getIntAsync())
 /// }
@@ -26,54 +26,77 @@ import Foundation
 /// }
 /// ```
 @frozen
+@_eagerMove
 public struct OneShotChannel<Element> {
 
-    @usableFromInline let buffer: Locked<Element?>
+    @usableFromInline struct Storage<Value> {
+        @usableFromInline var buffer: Value
 
-    @usableFromInline let readyToSend: ManagedAtomic<Int>
+        @usableFromInline var readyToReceive: Bool
+
+        @usableFromInline var closed: Bool
+
+        init(_ value: Value) {
+            buffer = value
+            readyToReceive = false
+            closed = false
+        }
+    }
+
+    @usableFromInline let mutex: Mutex
+
+    @usableFromInline let condition: Condition
+
+    @usableFromInline let storage: Box<Storage<Element?>>
 
     /// Initializes an instance of `OneShotChannel` type
     public init() {
-        buffer = Locked(nil)
-        readyToSend = ManagedAtomic(0)
+        storage = Box(Storage(nil))
+        mutex = Mutex()
+        condition = Condition()
     }
 
     @inlinable
     public func enqueue(_ item: Element) -> Bool {
-        guard readyToSend.load(ordering: .relaxed) < 1 else {
-            return false
+        mutex.whileLocked {
+            guard !storage.readyToReceive else {
+                return false
+            }
+            guard !storage.closed else {
+                return false
+            }
+            storage.interact {
+                $0.buffer = item
+                $0.readyToReceive = true
+            }
+            condition.signal()
+            return true
         }
-        buffer.updateWhileLocked { $0 = item }
-        readyToSend.store(1, ordering: .releasing)
-        return true
+
     }
 
     @inlinable
     public func dequeue() -> Element? {
-        guard readyToSend.load(ordering: .relaxed) < 2 else {
-            return nil
-        }
-        while !readyToSend.weakCompareExchange(
-            expected: 1, desired: 2, ordering: .acquiringAndReleasing
-        ).exchanged {
-            if readyToSend.load(ordering: .relaxed) == 2 {
-                return nil
-            }
-            Thread.yield()
-        }
-        return buffer.updateWhileLocked {
-            let result = $0
-            $0 = nil
+        return mutex.whileLocked {
+            condition.wait(
+                mutex: mutex,
+                condition: storage.readyToReceive || storage.closed)
+            let result = storage.buffer
+            storage.buffer = nil
             return result
         }
+
     }
 
     public func clear() {
-        buffer.updateWhileLocked { $0 = nil }
+        mutex.whileLocked {
+            storage.interact { $0.buffer = nil }
+        }
+
     }
 
     public func close() {
-        readyToSend.store(2, ordering: .relaxed)
+        mutex.whileLocked { storage.closed = true }
     }
 }
 
@@ -88,23 +111,23 @@ extension OneShotChannel {
 extension OneShotChannel {
 
     public var isClosed: Bool {
-        readyToSend.load(ordering: .relaxed) == 2
+        return mutex.whileLocked { storage.closed }
     }
 
     public var length: Int {
-        return buffer.updateWhileLocked {
-            switch $0 {
-            case .none: return 0
-            case .some: return 1
+        return mutex.whileLocked {
+            switch storage.buffer {
+                case .none: return 0
+                case .some: return 1
             }
         }
     }
 
     public var isEmpty: Bool {
-        return buffer.updateWhileLocked {
-            switch $0 {
-            case .none: return true
-            case .some: return false
+        return mutex.whileLocked {
+            switch storage.buffer {
+                case .none: return true
+                case .some: return false
             }
         }
     }

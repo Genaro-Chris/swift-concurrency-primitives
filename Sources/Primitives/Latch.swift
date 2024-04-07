@@ -20,9 +20,9 @@ public final class Latch {
     /// Initialises an instance of the `Latch` type
     /// - Parameter size: the number of threads to use
     /// - Returns: nil if the `size` argument is less than one
-    public init?(size: Int) {
+    public init(size: Int) {
         if size < 1 {
-            return nil
+            fatalError("Cannot initialize an instance of Latch with count of 0")
         }
         blockedThreadsCount = size
         condition = Condition()

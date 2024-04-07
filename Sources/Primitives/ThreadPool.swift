@@ -1,6 +1,6 @@
-/// A group of pre-started, idle worker threads that is ready to execute asynchronous 
+/// A group of pre-started, idle worker threads that is ready to execute asynchronous
 ///  code concurrently between all threads.
-/// 
+///
 /// This is particularly useful for dispatching multiple heavy workloads off the current thread.
 /// It can also block the current thread and wait for all jobs enqueued to finish its execution
 ///

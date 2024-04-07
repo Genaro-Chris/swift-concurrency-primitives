@@ -2,8 +2,8 @@ import Atomics
 import Foundation
 
 /// This provides a thread-coordination mechanism that blocks a group of threads of known length until all threads
-/// in that group have reached the barrier. 
-/// 
+/// in that group have reached the barrier.
+///
 /// This enables multiple threads to synchronize the beginning of some computation.
 /// This is similar to the ``Latch`` type with a major difference of `Barrier` types are reusable:
 /// once a group of arriving threads are unblocked, the barrier can be reused
@@ -22,9 +22,9 @@ public final class Barrier {
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
     /// - Returns: nil if the `size` argument is less than one
-    public init?(size: Int) {
+    public init(size: Int) {
         if size < 1 {
-            return nil
+            fatalError("Cannot initialize an instance of Barrier with count of 0")
         }
         condition = Condition()
         mutex = Mutex()

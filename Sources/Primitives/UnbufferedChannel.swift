@@ -1,16 +1,16 @@
 import Atomics
 import Foundation
 
-/// One sized buffered channel for multithreaded execution context which serves 
+/// One sized buffered channel for multithreaded execution context which serves
 /// as a communication mechanism between two or more threads
-/// 
+///
 /// An enqueue operation on an unbuffered channel is synchronized before (and thus happens
 /// before) the completion of a dequeue from that channel. A dequeue operation on an unbuffered channel
 /// is synchronized before (and thus happens before) the completion of a corresponding or next enqueue operation
 /// on that channel. In other words, if a thread enqueues a value through an unbuffered channel, the
 /// receiving thread will complete the reception of that value, and then the enqueueing thread will
 /// finish enqueueing that value.
-/// 
+///
 /// This means at any given time it can only contain a single item in it and any more enqueue operations on
 /// `UnbufferedChannel` with a value will block until a dequeue operation have being done
 @_spi(OtherChannels)
@@ -18,69 +18,124 @@ import Foundation
 @_eagerMove
 public struct UnbufferedChannel<Element> {
 
-    @usableFromInline let buffer: Locked<Element?>
+    @usableFromInline struct Storage<Value> {
 
-    @usableFromInline let closed: ManagedAtomic<Bool>
+        private var innerValue: Value?
 
-    @usableFromInline let readyToSend: ManagedAtomic<Int>
+        @usableFromInline var value: Value? {
+            _read {
+                yield innerValue
+            }
+            _modify {
+                yield &innerValue
+            }
+        }
+
+        @usableFromInline var send = true
+
+        @usableFromInline var receive = false
+
+        @usableFromInline var closed = false
+
+        @usableFromInline var receiveReady: Bool {
+            switch (receive, closed) {
+                case (true, true): true
+
+                case (true, false): true
+
+                case (false, true): true
+
+                case (false, false): false
+            }
+        }
+
+        @usableFromInline var sendReady: Bool {
+            switch (send, closed) {
+                case (true, true): true
+
+                case (true, false): true
+
+                case (false, true): true
+
+                case (false, false): false
+            }
+        }
+    }
+
+    @usableFromInline let storage: Box<Storage<Element>>
+
+    @usableFromInline let mutex: Mutex
+
+    @usableFromInline let sendCondition: Condition
+
+    @usableFromInline let receiveCondition: Condition
 
     /// Initializes an instance of `UnbufferedChannel` type
     public init() {
-        buffer = Locked(nil)
-        closed = ManagedAtomic(false)
-        readyToSend = ManagedAtomic(0)
+        storage = Box(Storage())
+        mutex = Mutex()
+        sendCondition = Condition()
+        receiveCondition = Condition()
     }
 
     @inlinable
     public func enqueue(_ item: Element) -> Bool {
-        guard !closed.load(ordering: .relaxed) else {
-            return false
-        }
-        while !readyToSend.weakCompareExchange(
-            expected: 0, desired: 2, ordering: .acquiringAndReleasing
-        ).exchanged {
-            if closed.load(ordering: .relaxed) {
+        return mutex.whileLocked {
+            guard !storage.closed else {
                 return false
             }
-            Thread.yield()
+            sendCondition.wait(mutex: mutex, condition: storage.sendReady)
+            guard !storage.closed else {
+                return false
+            }
+            storage.interact {
+                $0.value = item
+                $0.receive = true
+                $0.send = false
+            }
+            receiveCondition.signal()
+            return true
         }
-        defer { readyToSend.store(1, ordering: .releasing) }
-        buffer.updateWhileLocked { $0 = item }
-        return true
     }
 
     @inlinable
     public func dequeue() -> Element? {
-        guard !closed.load(ordering: .relaxed) else {
-            return nil
-        }
-
-        while !readyToSend.weakCompareExchange(
-            expected: 1, desired: 3, ordering: .acquiringAndReleasing
-        ).exchanged {
-            if closed.load(ordering: .relaxed) {
-                return nil
+        return mutex.whileLocked {
+            guard !storage.closed else {
+                return storage.interact {
+                    let result = $0.value
+                    $0.value = nil
+                    return result
+                }
             }
-            Thread.yield()
-        }
-
-        defer { readyToSend.store(0, ordering: .releasing) }
-        return buffer.updateWhileLocked {
-            let result = $0
-            $0 = nil
-            return result
+            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
+            return storage.interact {
+                let result = $0.value
+                $0.value = nil
+                if !$0.closed {
+                    $0.send = true
+                    $0.receive = false
+                }
+                sendCondition.signal()
+                return result
+            }
         }
     }
 
     public func clear() {
-        buffer.updateWhileLocked { $0 = nil }
+        mutex.whileLocked {
+            storage.value = nil
+        }
+
     }
 
     public func close() {
-        guard !closed.load(ordering: .relaxed) else {
-            return
+        mutex.whileLocked {
+            storage.closed = true
+            sendCondition.broadcast()
+            receiveCondition.broadcast()
         }
-        closed.store(true, ordering: .relaxed)
+
     }
 }
 
@@ -95,23 +150,23 @@ extension UnbufferedChannel {
 extension UnbufferedChannel {
 
     public var isClosed: Bool {
-        closed.load(ordering: .relaxed)
+        return mutex.whileLocked { storage.closed }
     }
 
     public var length: Int {
-        return buffer.updateWhileLocked {
-            switch $0 {
-            case .none: return 0
-            case .some: return 1
+        return mutex.whileLocked {
+            switch storage.value {
+                case .none: return 0
+                case .some: return 1
             }
         }
     }
 
     public var isEmpty: Bool {
-        return buffer.updateWhileLocked {
-            switch $0 {
-            case .none: return true
-            case .some: return false
+        return mutex.whileLocked {
+            switch storage.value {
+                case .none: return true
+                case .some: return false
             }
         }
     }

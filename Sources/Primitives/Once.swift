@@ -2,12 +2,12 @@ import Atomics
 
 /// A synchronization primitive which provides a way of executing code exactly once
 ///  per process or run a one-time global initialization.
-/// 
+///
 /// It is similar to Go's [sync.Once](https://pkg.go.dev/sync#Once)
 /// or Rust's [std::sync::Once](https://doc.rust-lang.org/std/sync/struct.Once.html) types
-/// 
+///
 /// # Example
-/// 
+///
 /// ```swift
 /// Once.runOnce {
 ///     // some global initialization work

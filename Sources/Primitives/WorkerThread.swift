@@ -7,20 +7,14 @@ public typealias SendableWorkItem = @Sendable () -> Void
 
 final class WorkerThread: Thread {
 
-    typealias TaskQueue = Queue<WorkItem>
+    private let latch: Latch
+
+    private let queue: UnboundedChannel<() -> Void>
 
     private let threadName: String
 
-    private let queue: TaskQueue
-
-    private let isBusy: ManagedAtomic<Bool>
-
-    private let condition: Condition
-
-    private let mutex: Mutex
-
     var isBusyExecuting: Bool {
-        isBusy.load(ordering: .relaxed)
+        isBusy.updateWhileLocked { $0 }
     }
 
     var isEmpty: Bool {
@@ -32,37 +26,43 @@ final class WorkerThread: Thread {
         set {}
     }
 
+    private let isBusy: Locked<Bool>
+
+    func submit(_ body: @escaping () -> Void) {
+        queue <- body
+    }
+
     init(_ name: String) {
+        latch = Latch(size: 1)
+        queue = UnboundedChannel()
+        isBusy = Locked(false)
         threadName = name
-        queue = Queue()
-        isBusy = ManagedAtomic(false)
-        mutex = Mutex()
-        condition = Condition()
         super.init()
     }
 
-    func submit(_ body: @escaping WorkItem) {
-        mutex.whileLocked {
-            queue <- body
-            condition.signal()
-        }
-    }
-
-    fileprivate func dequeue() -> WorkItem? {
-        return mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: !queue.isEmpty)
-            guard !queue.isEmpty else { return nil }
-            return queue.dequeue()
-        }
-    }
-
     override func main() {
-        while !isCancelled {
-            if let work = dequeue() {
-                isBusy.store(true, ordering: .relaxed)
+        while !self.isCancelled {
+            for work in queue {
+                isBusy.updateWhileLocked { $0 = true }
                 work()
-                isBusy.store(false, ordering: .relaxed)
             }
+            isBusy.updateWhileLocked { $0 = false }
         }
+        latch.decrementAndWait()
     }
+
+    func clear() {
+        queue.clear()
+    }
+
+    override func cancel() {
+        queue.close()
+        queue.clear()
+        super.cancel()
+    }
+
+    func join() {
+        latch.waitForAll()
+    }
+
 }

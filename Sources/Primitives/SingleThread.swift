@@ -6,7 +6,7 @@ import Foundation
 /// This is particularly useful for dispatching heavy workload off the current thread.
 ///
 /// It is very similar to swift [DispatchSerialQueue](https://developer.apple.com/documentation/dispatch/dispatchserialqueue)
-/// 
+///
 /// Example
 /// ```swift
 /// let threadHandle = SingleThread(name: "Thread", waitType: .canncelAll)
@@ -26,6 +26,10 @@ public final class SingleThread: ThreadPool {
 
     private let started: OnceState
 
+    private func end() {
+        handle.cancel()
+    }
+
     /// Initialises an instance of `SingleThread` type
     /// - Parameters:
     ///   - name: name to assign as the thread name, which defaults to `SingleThread`
@@ -33,12 +37,12 @@ public final class SingleThread: ThreadPool {
     public init(name: String = "SingleThread", waitType: WaitType) {
         handle = WorkerThread(name)
         self.waitType = waitType
-        barrier = Barrier(size: 2)!
+        barrier = Barrier(size: 2)
         started = OnceState()
     }
 
     public func cancel() {
-        handle.cancel()
+        handle.clear()
     }
 
     public func submit(_ body: @escaping WorkItem) {
@@ -69,12 +73,13 @@ public final class SingleThread: ThreadPool {
             return
         }
         switch waitType {
-        case .cancelAll: cancel()
+            case .cancelAll: end()
 
-        case .waitForAll:
-            pollAll()
-            cancel()
+            case .waitForAll:
+                pollAll()
+                end()
         }
+        handle.join()
     }
 }
 

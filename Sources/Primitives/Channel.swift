@@ -1,17 +1,14 @@
-infix operator <-
-prefix operator <-
-
-/// A blocking threadsafe construct for multithreaded execution context which serves 
+/// A blocking threadsafe construct for multithreaded execution context which serves
 /// as a message passing communication mechanism between two or more threads
-/// 
+///
 /// This construct provides a multi-producer single-consumer concurrency primitives
 /// where they are usually multiple senders and only one receiver useful for
 /// message passing
-/// 
+///
 /// This construct blocks a thread on either the sending or receiving parts so it is
 /// highly advised to avoid using together with the Swift modern concurrency that is in async-await contexts
 /// because it blocks tasks from making forward progress
-public protocol Channel<Element>: IteratorProtocol, Sequence, Sendable {
+public protocol Channel<Element>: IteratorProtocol, Sequence {
     associatedtype Element
 
     /// Indicates if `Channel` is closed

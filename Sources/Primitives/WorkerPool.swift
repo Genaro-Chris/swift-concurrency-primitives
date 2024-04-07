@@ -2,13 +2,13 @@ import Foundation
 
 /// A collection of fixed size pre-started, idle worker threads that is ready to execute asynchronous
 /// code concurrently between all threads.
-/// 
+///
 /// It uses a random enqueueing strategy that means the thread which the enqueued job will execute
 /// is not is known and if a thread is assigned a job then that thread will not be assigned
 /// a job until all threads had being jobs
-/// 
+///
 /// It is very similar to Swift's [DispatchQueue](https://developer.apple.com/documentation/dispatch/dispatchqueue)
-/// 
+///
 /// Example
 /// ```swift
 /// let pool = WorkerPool(size: 4, waitType: .waitForAll)!
@@ -28,11 +28,18 @@ public final class WorkerPool {
 
     let started: OnceState
 
-    private func submitRandomly(_ work: @escaping WorkItem) {
+    private func end() {
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        handles.randomElement()?.submit(work)
+        handles.forEach { $0.cancel() }
+    }
+
+    private func submitRandomly(_ body: @escaping WorkItem) {
+        started.runOnce {
+            handles.forEach { $0.start() }
+        }
+        handles.randomElement()?.submit(body)
     }
 
     /// Submits work to a specific thread in the pool
@@ -41,11 +48,11 @@ public final class WorkerPool {
     ///   - work: a non-throwing closure that takes and returns void
     /// - Returns: true if the work was submitted otherwise false
     public func submitToSpecificThread(at index: Int, _ work: @escaping WorkItem) -> Bool {
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
         guard (0 ..< handles.count).contains(index) else {
             return false
+        }
+        started.runOnce {
+            handles.forEach { $0.start() }
         }
         handles[index].submit(work)
         return true
@@ -58,10 +65,10 @@ public final class WorkerPool {
     /// - Returns: nil if the size argument is less than one
     public init(size: Int, waitType: WaitType) {
         guard size > 0 else {
-            fatalError("Cannot initialize an instance of WorkerPool with 0 thread")
+            preconditionFailure("Cannot initialize an instance of WorkerPool with 0 thread")
         }
         self.waitType = waitType
-        barrier = Barrier(size: size + 1)!
+        barrier = Barrier(size: size + 1)
         started = OnceState()
         handles = (0 ..< size).map { index in
             return WorkerThread("WorkerPool #\(index)")
@@ -73,12 +80,13 @@ public final class WorkerPool {
             return
         }
         switch waitType {
-        case .cancelAll: cancel()
+            case .cancelAll: end()
 
-        case .waitForAll:
-            pollAll()
-            cancel()
+            case .waitForAll:
+                pollAll()
+                end()
         }
+        handles.forEach { $0.join() }
     }
 }
 
@@ -105,7 +113,7 @@ extension WorkerPool: ThreadPool {
             return
         }
         handles.forEach {
-            $0.cancel()
+            $0.clear()
         }
     }
 
@@ -137,7 +145,7 @@ extension WorkerPool: CustomStringConvertible {
 extension WorkerPool: CustomDebugStringConvertible {
     public var debugDescription: String {
         let threadNames = handles.map { handle in
-            " - " + (handle.name ?? "WorkerPool") + "\n"
+            " - " + (handle.name!) + "\n"
         }.reduce("") { acc, name in
             return acc + name
         }

@@ -1,13 +1,13 @@
 import Atomics
 
 /// A synchronization primitive which provides a way of executing code exactly once
-///  per instance 
-/// 
-/// This is particularly useful for secondary initialization in classes ensuring that the property is 
+///  per instance
+///
+/// This is particularly useful for secondary initialization in classes ensuring that the property is
 /// fully initialized once no matter times or where it is was called ie in concurrent accesses
-/// 
+///
 /// # Example
-/// 
+///
 /// ```swift
 /// class SomeClass {
 ///

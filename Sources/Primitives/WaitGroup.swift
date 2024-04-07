@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// This waits for a number of threads or tasks to finish.
@@ -7,55 +6,69 @@ import Foundation
 /// threads to wait for. Then each of the threads or tasks
 /// runs and calls ``done()`` when finished. Then,
 /// ``waitForAll()`` can be used to block until all threads have finished.
-/// 
+///
 /// This is similar to Go's [sync.WaitGroup](https://pkg.go.dev/sync#WaitGroup)
 /// and Swift's [DispatchGroup](https://developer.apple.com/documentation/dispatch/dispatchgroup)
-/// 
+///
 /// # Example
-/// 
+///
 /// ```swift
 /// let waitGroup = WaitGroup()
 /// for _ in 1...5 {
 ///     waitGroup.enter()
 ///     Task.detached {
 ///         defer {
-///             waitGroup.done()    
+///             waitGroup.done()
 ///         }
 ///         // do some async or concurrent work
 ///     }
 /// }
 /// waitGroup.waitForAll()
 /// ```
-@frozen
-public struct WaitGroup {
+@_fixed_layout
+public final class WaitGroup {
 
-    @usableFromInline let index: ManagedAtomic<Int>
+    @usableFromInline var index: Int
+
+    @usableFromInline let mutex: Mutex
+
+    @usableFromInline let condition: Condition
 
     /// Initializes a `WaitGroup` instance
     @inlinable
     public init() {
-        index = ManagedAtomic(0)
+        index = 0
+        mutex = Mutex()
+        condition = Condition()
     }
 
     /// This indicates that a new thread or task is about to start.
     /// This should be called only outside the thread or task
     @inlinable
     public func enter() {
-        index.wrappingIncrement(ordering: .acquiringAndReleasing)
+        mutex.whileLocked {
+            index += 1
+        }
     }
 
     /// Indicates that it is done executing this thread.
     /// This should be called only in the thread or task
     @inlinable
     public func done() {
-        index.wrappingDecrement(ordering: .acquiringAndReleasing)
+        mutex.whileLocked {
+            guard index > 0 else { return }
+            index -= 1
+            if index == 0 {
+                condition.broadcast()
+            }
+        }
     }
 
     /// Blocks until there is no more thread running
     @inlinable
     public func waitForAll() {
-        while index.load(ordering: .acquiring) != 0 {
-            Thread.yield()
+        mutex.whileLocked {
+            condition.wait(mutex: mutex, condition: index == 0)
         }
     }
 }

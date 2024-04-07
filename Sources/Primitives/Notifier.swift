@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// This serves as an indicator for task or thread has finished its execution
@@ -37,9 +36,9 @@ public final class Notifier {
     /// - Parameter size: maximum number of tasks or threads to await
     /// - Returns: nil if the `size` argument is less than zero
     @inlinable
-    public init?(size: Int) {
+    public init(size: Int) {
         guard size >= 0 else {
-            return nil
+            preconditionFailure("Cannot initialize an instance of Notifier with count of 0")
         }
         index = size
         mutex = Mutex()
@@ -51,11 +50,13 @@ public final class Notifier {
     @inlinable
     public func notify() {
         mutex.whileLocked {
+            guard index >= 1 else { return }
             index -= 1
             if index == 0 {
                 condition.broadcast()
             }
         }
+
     }
 
     /// Blocks until there is no more thread or task running

@@ -2,7 +2,9 @@ import Foundation
 
 #if canImport(Darwin)
     import Darwin
+
     public final class DarwinMutex {
+
         let lock: UnsafeMutablePointer<os_unfair_lock>
 
         init() {

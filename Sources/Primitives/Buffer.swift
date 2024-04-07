@@ -1,9 +1,12 @@
-import Foundation
+@usableFromInline
+class Buffer<Element> {
 
-@_fixed_layout @usableFromInline
-class Buffer<ElementType> {
+    @usableFromInline var innerBuffer: ContiguousArray<Element>
 
-    @usableFromInline var buffer: ContiguousArray<ElementType>
+    @usableFromInline var buffer: ContiguousArray<Element> {
+        _read { yield innerBuffer }
+        _modify { yield &innerBuffer }
+    }
 
     var count: Int {
         buffer.count
@@ -15,16 +18,16 @@ class Buffer<ElementType> {
     }
 
     @inlinable init() {
-        buffer = ContiguousArray()
+        innerBuffer = ContiguousArray()
     }
 
     @inlinable
-    func enqueue(_ item: ElementType) {
+    func enqueue(_ item: Element) {
         buffer.append(item)
     }
 
     @inlinable
-    func dequeue() -> ElementType? {
+    func dequeue() -> Element? {
         guard !buffer.isEmpty else {
             return nil
         }

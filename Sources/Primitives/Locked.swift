@@ -1,18 +1,18 @@
 /// This acts as a mutual exclusion primitive useful for protecting shared data
-/// 
-/// This `Locked` type will try to acquire the lock and if acquired will block other threads waiting for the lock 
+///
+/// This `Locked` type will try to acquire the lock and if acquired will block other threads waiting for the lock
 /// to become available
-/// 
-/// Each `Locked` type has a generic type parameter which represents the data that it is protecting. 
+///
+/// Each `Locked` type has a generic type parameter which represents the data that it is protecting.
 /// The data can be accessed through in the following ways:
 /// - the ``updateWhileLocked(_:)`` which guarantees that the data is only ever accessed when the lock is acquired
-/// - the inner type instance properties through dynamic member lookup 
-/// 
-/// 
+/// - the inner type instance properties through dynamic member lookup
+///
+///
 /// This `Locked` type is also a property wrapper which means it can be created
 /// easily as follows and it provides a projected value which that safely cross
 /// async-await contexts
-/// 
+///
 /// ```swift
 /// @Locked var lockedInteger = 0
 /// await withTaskGroup(of: Void.self) { group in
@@ -24,13 +24,13 @@
 ///         }
 ///     }
 ///  }
-/// 
+///
 /// assert(lockedInteger == 55)
 /// ```
-/// 
-/// 
+///
+///
 /// # Example
-/// 
+///
 /// ```swift
 /// struct Student {
 ///     var age: Int
@@ -48,7 +48,7 @@
 /// assert(student.scores.count == 10)
 /// assert(student.age == 18)
 /// ```
-/// 
+///
 @propertyWrapper
 @dynamicMemberLookup
 @_fixed_layout
@@ -74,14 +74,14 @@ public final class Locked<Element>: @unchecked Sendable {
         self.value = value
     }
 
-    /// This function will block the local thread until it acquires the lock. 
-    /// Upon acquiring the lock, only this thread can access or update the value stored in this type. 
+    /// This function will block the local thread until it acquires the lock.
+    /// Upon acquiring the lock, only this thread can access or update the value stored in this type.
     /// - Parameter using: a closure that updates or changes the value stored in this type
-    /// - Returns: value returned from the `using` closure 
-    /// 
+    /// - Returns: value returned from the `using` closure
+    ///
     /// # Note
     /// Avoid calling long running or blocking code while using this function
-    /// 
+    ///
     @inlinable
     public func updateWhileLocked<T>(_ using: (inout Element) throws -> T) rethrows -> T {
         return try lock.whileLocked {
@@ -91,7 +91,8 @@ public final class Locked<Element>: @unchecked Sendable {
 
     /// Initialises an instance of the `Locker` type with a value to be protected
     convenience
-    public init(wrappedValue value: Element) {
+        public init(wrappedValue value: Element)
+    {
         self.init(value)
     }
 

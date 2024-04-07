@@ -49,6 +49,7 @@ final class ThreadPoolTests: XCTestCase {
             let handle = SingleThread(waitType: .cancelAll)
             for index in 1 ... 10 {
                 handle.submit {
+                    Thread.sleep(forTimeInterval: 0.7)
                     $total.updateWhileLocked { $0 += index }
                 }
             }
@@ -61,7 +62,6 @@ final class ThreadPoolTests: XCTestCase {
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1 ... 10 {
             pool.submit {
-                Thread.sleep(forTimeInterval: 1)
                 $total.updateWhileLocked { $0 += index }
             }
         }
@@ -73,7 +73,6 @@ final class ThreadPoolTests: XCTestCase {
         @Locked var total = 0
         for index in 1 ... 10 {
             WorkerPool.globalPool.submit {
-                Thread.sleep(forTimeInterval: 1)
                 $total.updateWhileLocked { $0 += index }
             }
         }
@@ -86,14 +85,12 @@ final class ThreadPoolTests: XCTestCase {
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1 ... 5 {
             pool.submit {
-                Thread.sleep(forTimeInterval: 1)
                 $total.updateWhileLocked { $0 += index }
             }
         }
         pool.pollAll()
         for index in 6 ... 10 {
             pool.submit {
-                Thread.sleep(forTimeInterval: 1)
                 $total.updateWhileLocked { $0 += index }
             }
         }
@@ -106,7 +103,6 @@ final class ThreadPoolTests: XCTestCase {
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1 ... 10 {
             pool.async {
-                Thread.sleep(forTimeInterval: 1)
                 $total.updateWhileLocked { $0 += index }
             }
         }

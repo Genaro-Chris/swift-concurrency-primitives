@@ -1,13 +1,11 @@
-import XCTest
-
 @_spi(OtherChannels) @testable import Primitives
+import XCTest
 
 final class ChannelTests: XCTestCase {
     func test_one_shot_channel() {
         let random = Int.random(in: 1 ... 1000)
         let channel = OneShotChannel<Int>()
         DispatchQueue.global().async {
-            Thread.sleep(forTimeInterval: 1)
             channel <- random
         }
         if let value = <-channel {
@@ -43,33 +41,33 @@ final class ChannelTests: XCTestCase {
     }
 
     func test_bounded_channel() {
-        let channel = BoundedChannel<Int>(size: 3)!
+        let channel = BoundedChannel<Int>(size: 3)
         let handle = SingleThread(waitType: .waitForAll)
         let pool = WorkerPool(size: 4, waitType: .waitForAll)
         handle.submit {
             let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-            var array = [Int]()
-            for item in channel {
-                print("Received \(item)")
-                array.append(item)
+            let array = channel.map { item in
+                return item
             }
             XCTAssertEqual(expected, array.sorted())
+
         }
-        @Locked var count = 0
+        let waitGroup = WaitGroup()
         (0 ... 9).forEach { index in
+            waitGroup.enter()
             pool.submit { [index] in
+                defer {
+                    waitGroup.done()
+                    print("Done with \(index)")
+                }
                 if channel.enqueue(index) {
                     print("Successfully sent \(index)")
                 }
-                $count.updateWhileLocked {
-                    $0 += 1
-                }
             }
-
         }
-        while count != 10 {}
-        print("count \(count)")
+        waitGroup.waitForAll()
         channel.close()
+
     }
 
     func test_unbounded_channel() {
