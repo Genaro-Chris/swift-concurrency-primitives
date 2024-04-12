@@ -5,7 +5,7 @@ import Foundation
 
     public final class DarwinLock {
 
-        @usableFromInline let unfair_lock: UnsafeMutablePointer<os_unfair_lock>
+        let unfair_lock: UnsafeMutablePointer<os_unfair_lock>
 
         init() {
             unfair_lock = UnsafeMutablePointer.allocate(capacity: 1)
@@ -18,12 +18,12 @@ import Foundation
         }
 
         /// Acquire the lock.
-        func lock() {
+        public func lock() {
             os_unfair_lock_lock(unfair_lock)
         }
 
         /// Release the lock.
-        func unlock() {
+        public func unlock() {
             os_unfair_lock_unlock(unfair_lock)
         }
 
@@ -36,7 +36,7 @@ import Foundation
         ///
         /// # Note
         /// Avoid calling long running or blocking code while using this function
-        @_alwaysEmitIntoClient @inlinable
+        @inlinable
         public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
             lock()
             defer {
