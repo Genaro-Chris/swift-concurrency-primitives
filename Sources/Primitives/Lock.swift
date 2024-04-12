@@ -54,7 +54,7 @@ import Foundation
 public struct Lock {
 
     #if canImport(Darwin)
-        @usableFromInline let lock: DarwinMutex
+        @usableFromInline let lock: DarwinLock
     #else
         @usableFromInline let lock: Mutex
     #endif

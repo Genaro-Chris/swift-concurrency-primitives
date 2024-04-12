@@ -5,26 +5,26 @@ import Foundation
 
     public final class DarwinLock {
 
-        private let lock: UnsafeMutablePointer<os_unfair_lock>
+        @usableFromInline let unfair_lock: UnsafeMutablePointer<os_unfair_lock>
 
         init() {
-            lock = UnsafeMutablePointer.allocate(capacity: 1)
-            lock.initialize(to: os_unfair_lock())
+            unfair_lock = UnsafeMutablePointer.allocate(capacity: 1)
+            unfair_lock.initialize(to: os_unfair_lock())
         }
 
         deinit {
-            lock.deinitialize()
-            lock.deallocate()
+            unfair_lock.deinitialize(count: 1)
+            unfair_lock.deallocate()
         }
 
         /// Acquire the lock.
         func lock() {
-            os_unfair_lock_lock(lock)
+            os_unfair_lock_lock(unfair_lock)
         }
 
         /// Release the lock.
         func unlock() {
-            os_unfair_lock_unlock(lock)
+            os_unfair_lock_unlock(unfair_lock)
         }
 
         /// Tries to acquire the lock for the duration for the closure passed as
@@ -36,7 +36,7 @@ import Foundation
         ///
         /// # Note
         /// Avoid calling long running or blocking code while using this function
-        @_transparent @_alwaysEmitIntoClient
+        @_alwaysEmitIntoClient @inlinable
         public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
             lock()
             defer {
