@@ -13,7 +13,17 @@ import Atomics
     #error("Unable to identify your underlying C library.")
 #endif
 
+/// A Condition Variable
 ///
+/// Condition variables provides the ability to block a thread such that
+/// it consumes no CPU time while waiting for an event to occur.
+/// Condition variables are typically associated with a boolean predicate
+///  (a condition), or time measured in seconds and a mutex.
+/// The predicate is always verified inside of the mutex before determining that a thread must block.
+///
+/// Methods of this class will block the current thread of execution.
+/// Note that any attempt to use multiple mutexes on the same condition variable may result in
+/// an undefined behaviour at runtime
 @_fixed_layout
 public final class Condition {
 
@@ -58,15 +68,16 @@ public final class Condition {
     ///   - forTimeInterval: The number of seconds to wait to acquire
     ///     the lock before giving up.
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
-    public func wait(mutex: Mutex, timeoutSeconds: Double) -> Bool {
-        precondition(timeoutSeconds >= 0, "time passed in as argument must be greater than zero")
+    public func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
+        precondition(timeout.time >= 0, "time passed in as argument must be greater than zero")
 
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
 
         #if os(Windows)
-            var dwMilliseconds: DWORD = DWORD(timeoutSeconds * 1000)
+
+            var dwMilliseconds: DWORD = DWORD(timeout.timeInMilli)
             while true {
                 let dwWaitStart = timeGetTime()
                 if !SleepConditionVariableSRW(condition, mutex.mutex, dwMilliseconds, 0) {
@@ -83,30 +94,18 @@ public final class Condition {
             return true
         #else
 
-            // convert argument passed into nanoseconds
-            let nsecPerSec: Int64 = 1_000_000_000
-            let timeoutNS = Int64(timeoutSeconds * Double(nsecPerSec))
+            // ensure that the mutex is not a recursive one on non windows systems
+            if case .recursive = mutex.mutexType {
+                preconditionFailure("Condition type should never be used with recursive mutexes")
+            }
 
-            // get the current clock id
-            var clockID = clockid_t(0)
-            pthread_condattr_getclock(conditionAttr, &clockID)
-
-            // get the current time
-            var curTime = timespec(tv_sec: 0, tv_nsec: 0)
-            clock_gettime(clockID, &curTime)
-
-            // calculate the timespec from the argument passed
-            let allNSecs: Int64 = timeoutNS + Int64(curTime.tv_nsec) / nsecPerSec
-            var timeoutAbs = timespec(
-                tv_sec: curTime.tv_sec + Int(allNSecs / nsecPerSec),
-                tv_nsec: curTime.tv_nsec + Int(allNSecs % nsecPerSec)
-            )
+            var timeoutAbs = getTimeSpec(with: timeout)
 
             // wait until the time passed as argument as elapsed
             switch pthread_cond_timedwait(condition, mutex.mutex, &timeoutAbs) {
-                case 0: return true
-                case ETIMEDOUT: return false
-                case let err: fatalError("caught error \(err) while calling pthread_cond_timedwait")
+            case 0: return true
+            case ETIMEDOUT: return false
+            case let err: fatalError("caught error \(err) while calling pthread_cond_timedwait")
             }
         #endif
     }
@@ -119,6 +118,14 @@ public final class Condition {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
+        #if os(Windows)
+            // Windows doesn't have recursive mutex so no need to check
+        #else
+            // ensure that the mutex is not a recursive one on non windows systems
+            if case .recursive = mutex.mutexType {
+                preconditionFailure("Condition type should never be used with recursive mutexes")
+            }
+        #endif
         while true {
             if body() { break }
             #if os(Windows)
@@ -142,6 +149,16 @@ public final class Condition {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
+
+        #if os(Windows)
+            // Windows doesn't have recursive mutex so no need to check
+        #else
+            // ensure that the mutex is not a recursive one on non windows systems
+            if case .recursive = mutex.mutexType {
+                preconditionFailure("Condition type should never be used with recursive mutexes")
+            }
+        #endif
+
         while true {
             if !body() { break }
             #if os(Windows)
@@ -170,6 +187,10 @@ public final class Condition {
                 "\(#function) failed in SleepConditionVariableSRW with error \(GetLastError())"
             )
         #else
+            // ensure that the mutex is not a recursive one on non windows systems
+            if case .recursive = mutex.mutexType {
+                preconditionFailure("Condition type should never be used with recursive mutexes")
+            }
             let err = pthread_cond_wait(condition, mutex.mutex)
             precondition(err == 0, "\(#function) failed due to error \(err)")
         #endif
@@ -193,5 +214,45 @@ public final class Condition {
             precondition(err == 0, "\(#function) failed due to \(err)")
         #endif
     }
+    
+    func getTimeSpec(with timeout: TimeDuration) -> timespec {
+        // converts seconds into nanoseconds
+        let nsecsPerSec: Int64 = 1_000_000_000
 
+        #if canImport(Darwin) || os(macOS)
+
+            var currentTime: timeval = timeval()
+            // get the current time
+            gettimeofday(&currentTime, nil)
+
+            let allNSecs: Int64 = timeout.timeInNano + Int64(currentTime.tv_usec) * 1000
+
+            // calculate the timespec from the argument passed
+            let timeoutAbs: timespec = timespec(
+                tv_sec: currentTime.tv_sec + Int((allNSecs / nsecsPerSec)),
+                tv_nsec: Int(allNSecs % nsecsPerSec))
+
+            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < Int(nsecsPerSec))
+            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
+
+        #elseif os(Linux)
+
+            // get the current time
+            var currentTime: timespec = timespec(tv_sec: 0, tv_nsec: 0)
+            clock_gettime(CLOCK_REALTIME, &currentTime)
+
+            // calculate the timespec from the argument passed
+            let allNSecs: Int64 = (timeout.timeInNano + Int64(currentTime.tv_nsec)) / nsecsPerSec
+            let timeoutAbs: timespec = timespec(
+                tv_sec: currentTime.tv_sec + Int(allNSecs / nsecsPerSec),
+                tv_nsec: currentTime.tv_nsec + Int(allNSecs % nsecsPerSec)
+            )
+
+            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < Int(nsecsPerSec))
+            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
+
+        #endif
+
+        return timeoutAbs
+    }
 }

@@ -54,9 +54,9 @@
 @_fixed_layout
 public final class Locked<Element>: @unchecked Sendable {
 
-    @usableFromInline let lock: Lock
+    private let lock: Lock
 
-    @usableFromInline var value: Element
+    private var innerValue: UnsafeMutablePointer<Element>
 
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
@@ -71,7 +71,13 @@ public final class Locked<Element>: @unchecked Sendable {
     /// Initialises an instance of the `Locker` type with a value to be protected
     public init(_ value: Element) {
         lock = Lock()
-        self.value = value
+        innerValue = UnsafeMutablePointer.allocate(capacity: 1)
+        innerValue.initialize(to: value)
+    }
+
+    deinit {
+        innerValue.deinitialize(count: 1)
+        innerValue.deallocate()
     }
 
     /// This function will block the local thread until it acquires the lock.
@@ -82,17 +88,14 @@ public final class Locked<Element>: @unchecked Sendable {
     /// # Note
     /// Avoid calling long running or blocking code while using this function
     ///
-    @inlinable
     public func updateWhileLocked<T>(_ using: (inout Element) throws -> T) rethrows -> T {
         return try lock.whileLocked {
-            return try using(&value)
+            return try using(&innerValue.pointee)
         }
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
-    convenience
-        public init(wrappedValue value: Element)
-    {
+    convenience public init(wrappedValue value: Element) {
         self.init(value)
     }
 

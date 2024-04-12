@@ -28,14 +28,13 @@ import Foundation
 @_fixed_layout
 public final class WaitGroup {
 
-    @usableFromInline var index: Int
+    private var index: Int
 
-    @usableFromInline let mutex: Mutex
+    private let mutex: Mutex
 
-    @usableFromInline let condition: Condition
+    private let condition: Condition
 
     /// Initializes a `WaitGroup` instance
-    @inlinable
     public init() {
         index = 0
         mutex = Mutex()
@@ -44,7 +43,6 @@ public final class WaitGroup {
 
     /// This indicates that a new thread or task is about to start.
     /// This should be called only outside the thread or task
-    @inlinable
     public func enter() {
         mutex.whileLocked {
             index += 1
@@ -53,7 +51,6 @@ public final class WaitGroup {
 
     /// Indicates that it is done executing this thread.
     /// This should be called only in the thread or task
-    @inlinable
     public func done() {
         mutex.whileLocked {
             guard index > 0 else { return }
@@ -65,7 +62,6 @@ public final class WaitGroup {
     }
 
     /// Blocks until there is no more thread running
-    @inlinable
     public func waitForAll() {
         mutex.whileLocked {
             condition.wait(mutex: mutex, condition: index == 0)

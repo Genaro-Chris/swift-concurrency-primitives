@@ -14,6 +14,7 @@ class PThreadBarrier {
         barrier.initialize(to: pthread_barrier_t())
         barrierAttr = UnsafeMutablePointer.allocate(capacity: 1)
         barrierAttr.initialize(to: pthread_barrierattr_t())
+        pthread_barrierattr_init(barrierAttr)
         pthread_barrier_init(barrier, barrierAttr, count)
     }
 
@@ -24,7 +25,7 @@ class PThreadBarrier {
         barrier.deallocate()
     }
 
-     // Decrements the counter then blocks the current thread until counter is 0
+    // Decrements the counter then blocks the current thread until counter is 0
     func arriveAndWait() {
         pthread_barrier_wait(barrier)
     }

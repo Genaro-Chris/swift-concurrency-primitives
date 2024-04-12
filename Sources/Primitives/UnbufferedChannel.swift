@@ -18,11 +18,21 @@ import Foundation
 @_eagerMove
 public struct UnbufferedChannel<Element> {
 
-    @usableFromInline struct Storage<Value> {
+    public final class _Storage<Value> {
+
+        init() {
+            innerValue = nil
+
+            send = true
+
+            receive = false
+
+            closed = false
+        }
 
         private var innerValue: Value?
 
-        @usableFromInline var value: Value? {
+        var value: Value? {
             _read {
                 yield innerValue
             }
@@ -31,54 +41,53 @@ public struct UnbufferedChannel<Element> {
             }
         }
 
-        @usableFromInline var send = true
+        var send: Bool
 
-        @usableFromInline var receive = false
+        var receive: Bool
 
-        @usableFromInline var closed = false
+        var closed: Bool
 
-        @usableFromInline var receiveReady: Bool {
+        var receiveReady: Bool {
             switch (receive, closed) {
-                case (true, true): true
+            case (true, true): return true
 
-                case (true, false): true
+            case (true, false): return true
 
-                case (false, true): true
+            case (false, true): return true
 
-                case (false, false): false
+            case (false, false): return false
             }
         }
 
-        @usableFromInline var sendReady: Bool {
+        var sendReady: Bool {
             switch (send, closed) {
-                case (true, true): true
+            case (true, true): return true
 
-                case (true, false): true
+            case (true, false): return true
 
-                case (false, true): true
+            case (false, true): return true
 
-                case (false, false): false
+            case (false, false): return false
             }
         }
     }
 
-    @usableFromInline let storage: Box<Storage<Element>>
+    private let storage: _Storage<Element>
 
-    @usableFromInline let mutex: Mutex
+    private let mutex: Mutex
 
-    @usableFromInline let sendCondition: Condition
+    private let sendCondition: Condition
 
-    @usableFromInline let receiveCondition: Condition
+    private let receiveCondition: Condition
 
     /// Initializes an instance of `UnbufferedChannel` type
     public init() {
-        storage = Box(Storage())
+        storage = _Storage()
         mutex = Mutex()
         sendCondition = Condition()
         receiveCondition = Condition()
     }
 
-    @inlinable
     public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
@@ -88,37 +97,30 @@ public struct UnbufferedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            storage.interact {
-                $0.value = item
-                $0.receive = true
-                $0.send = false
-            }
+            storage.value = item
+            storage.receive = true
+            storage.send = false
             receiveCondition.signal()
             return true
         }
     }
 
-    @inlinable
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
-                return storage.interact {
-                    let result = $0.value
-                    $0.value = nil
-                    return result
-                }
-            }
-            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
-            return storage.interact {
-                let result = $0.value
-                $0.value = nil
-                if !$0.closed {
-                    $0.send = true
-                    $0.receive = false
-                }
-                sendCondition.signal()
+                let result = storage.value
+                storage.value = nil
                 return result
             }
+            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
+            let result = storage.value
+            storage.value = nil
+            if !storage.closed {
+                storage.send = true
+                storage.receive = false
+            }
+            sendCondition.signal()
+            return result
         }
     }
 
@@ -156,8 +158,8 @@ extension UnbufferedChannel {
     public var length: Int {
         return mutex.whileLocked {
             switch storage.value {
-                case .none: return 0
-                case .some: return 1
+            case .none: return 0
+            case .some: return 1
             }
         }
     }
@@ -165,8 +167,8 @@ extension UnbufferedChannel {
     public var isEmpty: Bool {
         return mutex.whileLocked {
             switch storage.value {
-                case .none: return true
-                case .some: return false
+            case .none: return true
+            case .some: return false
             }
         }
     }

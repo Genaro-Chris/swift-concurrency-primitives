@@ -1,65 +1,74 @@
 import Atomics
 import Foundation
 
-/// A buffered blocking threadsafe construct for multithreaded execution context which serves as a communication mechanism between two or more threads
+/// A buffered blocking threadsafe construct for multithreaded execution context
+///  which serves as a communication mechanism between two or more threads
 ///
 /// A fixed size buffer channel which means at any given time it can only contain a certain number of items in it, it
 /// blocks on the sender's side if the buffer has reached that certain number
-struct BoundedChannel<Element> {
+@_spi(OtherChannels)
+@frozen
+@_eagerMove
+public struct BoundedChannel<Element> {
 
-    @usableFromInline struct Storage<Value> {
-
-        init(capacity: Int) {
-            self.capacity = capacity
-        }
+    public final class _Storage<Value> {
 
         let capacity: Int
 
-        @usableFromInline let buffer = Buffer<Value>()
+        let buffer: Buffer<Value>
 
-        @usableFromInline var send = true
+        var send: Bool
 
-        @usableFromInline var receive = false
+        var receive: Bool
 
-        @usableFromInline var bufferCount = 0
+        var bufferCount: Int
 
-        @usableFromInline var closed = false
+        var closed: Bool
 
-        @usableFromInline var receiveReady: Bool {
+        init(capacity: Int) {
+            self.capacity = capacity
+            buffer = Buffer<Value>()
+            send = true
+            receive = false
+            bufferCount = 0
+            closed = false
+        }
+
+        var receiveReady: Bool {
             switch (receive, closed) {
-                case (true, true): true
+            case (true, true): return true
 
-                case (true, false): true
+            case (true, false): return true
 
-                case (false, true): true
+            case (false, true): return true
 
-                case (false, false): false
+            case (false, false): return false
             }
         }
 
-        @usableFromInline var sendReady: Bool {
+        var sendReady: Bool {
             switch (send, closed) {
-                case (true, true): true
+            case (true, true): return true
 
-                case (true, false): true
+            case (true, false): return true
 
-                case (false, true): true
+            case (false, true): return true
 
-                case (false, false): false
+            case (false, false): return false
             }
         }
     }
 
-    @usableFromInline let storage: Box<Storage<Element>>
+    private let storage: _Storage<Element>
 
-    @usableFromInline let sendCondition: Condition
+    private let sendCondition: Condition
 
-    @usableFromInline let receiveCondition: Condition
+    private let receiveCondition: Condition
 
-    @usableFromInline let mutex: Mutex
+    private let mutex: Mutex
 
     /// Maximum number of stored items at any given time
-    var capacity: Int {
+    public var capacity: Int {
         mutex.whileLocked {
             storage.capacity
         }
@@ -68,17 +77,17 @@ struct BoundedChannel<Element> {
     /// Initializes an instance of `BoundedChannel` type
     /// - Parameter size: maximum capacity of the channel
     /// - Returns: nil if the `size` argument is less than one
-    init(size: Int) {
+    public init(size: Int) {
         guard size > 0 else {
             preconditionFailure("Cannot initialize this channel with capacity of 0")
         }
-        storage = Box(Storage(capacity: size))
+        storage = _Storage(capacity: size)
         sendCondition = Condition()
         receiveCondition = Condition()
         mutex = Mutex()
     }
 
-    func enqueue(_ item: Element) -> Bool {
+    public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
                 return false
@@ -87,46 +96,40 @@ struct BoundedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            storage.interact {
-                $0.bufferCount += 1
-                if $0.bufferCount == $0.capacity {
-                    $0.send = false
-                }
-                $0.buffer.enqueue(item)
-                $0.receive = true
+            storage.bufferCount += 1
+            if storage.bufferCount == storage.capacity {
+                storage.send = false
             }
+            storage.buffer.enqueue(item)
+            storage.receive = true
             receiveCondition.signal()
             return true
         }
     }
 
-    func dequeue() -> Element? {
+    public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
-                return storage.interact {
-                    $0.buffer.dequeue()
-                }
+                return storage.buffer.dequeue()
             }
             receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
-            return storage.interact {
-                $0.bufferCount -= 1
-                if $0.bufferCount == 0 {
-                    $0.receive = false
-                }
-                $0.send = true
-                sendCondition.signal()
-                return $0.buffer.dequeue()
+            storage.bufferCount -= 1
+            if storage.bufferCount == 0 {
+                storage.receive = false
             }
+            storage.send = true
+            sendCondition.signal()
+            return storage.buffer.dequeue()
         }
     }
 
-    func clear() {
+    public func clear() {
         mutex.whileLocked {
             storage.buffer.clear()
         }
     }
 
-    func close() {
+    public func close() {
         mutex.whileLocked {
             storage.closed = true
             sendCondition.broadcast()
@@ -137,7 +140,7 @@ struct BoundedChannel<Element> {
 
 extension BoundedChannel {
 
-    mutating func next() -> Element? {
+    public mutating func next() -> Element? {
         return dequeue()
     }
 
@@ -145,17 +148,17 @@ extension BoundedChannel {
 
 extension BoundedChannel {
 
-    var isClosed: Bool {
+    public var isClosed: Bool {
         return mutex.whileLocked { storage.closed }
     }
 
-    var length: Int {
+    public var length: Int {
         return mutex.whileLocked {
             storage.buffer.count
         }
     }
 
-    var isEmpty: Bool {
+    public var isEmpty: Bool {
         storage.buffer.isEmpty
     }
 }

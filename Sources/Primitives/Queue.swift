@@ -21,57 +21,14 @@
 ///     print("\(value)")
 /// }
 /// ```
-@frozen
 @_eagerMove
 public struct Queue<Element> {
 
-    @usableFromInline @_fixed_layout
-    final class Buffer<Element> {
+    private let buffer: Buffer<Element>
 
-        @usableFromInline var innerBuffer: ContiguousArray<Element>
-
-        @usableFromInline var buffer: ContiguousArray<Element> {
-            _read { yield innerBuffer }
-            _modify { yield &innerBuffer }
-        }
-
-        var count: Int {
-            buffer.count
-        }
-
-        @inlinable
-        var isEmpty: Bool {
-            buffer.isEmpty
-        }
-
-        @inlinable init() {
-            innerBuffer = ContiguousArray()
-        }
-
-        @inlinable
-        func enqueue(_ item: Element) {
-            buffer.append(item)
-        }
-
-        @inlinable
-        func dequeue() -> Element? {
-            guard !buffer.isEmpty else {
-                return nil
-            }
-            return buffer.removeFirst()
-        }
-
-        func clear() {
-            buffer.removeAll()
-        }
-    }
-
-    @usableFromInline let buffer: Buffer<Element>
-
-    @usableFromInline let lock: Lock
+    private let lock: Lock
 
     /// Initializes an instance of the `Queue` type
-    @inlinable
     public init() {
         buffer = Buffer()
         lock = Lock()
@@ -79,14 +36,12 @@ public struct Queue<Element> {
 
     /// Enqueue an item into the queue
     /// - Parameter item: item to be enqueued
-    @inlinable
     public func enqueue(_ item: Element) {
         lock.whileLocked { buffer.enqueue(item) }
     }
 
     /// Dequeues an item from the queue
     /// - Returns: an item or nil if the queue is empty
-    @inlinable
     public func dequeue() -> Element? {
         return lock.whileLocked { buffer.dequeue() }
     }

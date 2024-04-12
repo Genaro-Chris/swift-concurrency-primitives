@@ -45,16 +45,16 @@ public final class WorkerPool {
     /// Submits work to a specific thread in the pool
     /// - Parameters:
     ///   - index: index of the thread which should execute the work
-    ///   - work: a non-throwing closure that takes and returns void
-    /// - Returns: true if the work was submitted otherwise false
-    public func submitToSpecificThread(at index: Int, _ work: @escaping WorkItem) -> Bool {
-        guard (0 ..< handles.count).contains(index) else {
+    ///   - body: a non-throwing closure that takes and returns void
+    /// - Returns: true if the body was submitted otherwise false
+    public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
+        guard (0..<handles.count).contains(index) else {
             return false
         }
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        handles[index].submit(work)
+        handles[index].submit(body)
         return true
     }
 
@@ -70,7 +70,7 @@ public final class WorkerPool {
         self.waitType = waitType
         barrier = Barrier(size: size + 1)
         started = OnceState()
-        handles = (0 ..< size).map { index in
+        handles = (0..<size).map { index in
             return WorkerThread("WorkerPool #\(index)")
         }
     }
@@ -80,11 +80,11 @@ public final class WorkerPool {
             return
         }
         switch waitType {
-            case .cancelAll: end()
+        case .cancelAll: end()
 
-            case .waitForAll:
-                pollAll()
-                end()
+        case .waitForAll:
+            pollAll()
+            end()
         }
         handles.forEach { $0.join() }
     }

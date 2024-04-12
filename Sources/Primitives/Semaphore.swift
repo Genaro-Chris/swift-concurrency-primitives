@@ -1,3 +1,4 @@
+import Atomics
 import Foundation
 
 /// This serves as an indicator for task or thread has finished its execution
@@ -5,65 +6,59 @@ import Foundation
 /// This waits for a number of threads or tasks to finish.
 /// The number of threads or tasks to be awaited are specified at initialization.
 /// Then each of the threads or tasks runs and calls ``notify()`` when finished.
-/// The ``waitForAll()`` method is then used to block the current thread, waiting until all threads or tasks have finished.
+/// The ``waitForAll()`` method is then used to block the current thread,
+/// waiting until all threads or tasks have finished.
 ///
 /// # Example
 /// ```swift
-/// let taskNotifier = Notifier(size: 3)
+/// let taskSemaphore = Semaphore(size: 3)
 ///
 /// for _ in 1 ... 3 {
 ///     Task {
 ///         // do some async work here...
-///         taskNotifier.notify
+///         taskSemaphore.notify
 ///     }
 /// }
 ///
 /// // do some other work here
 /// // wait for the async work to finish before continuing
-/// taskNotifier.waitForAll()
+/// taskSemaphore.waitForAll()
 /// ```
 ///
-@_fixed_layout
-public final class Notifier {
+@frozen
+public struct Semaphore {
 
-    @usableFromInline var index: Int
+    private let index: ManagedAtomic<Int>
 
-    @usableFromInline let mutex: Mutex
+    private let mutex: Mutex
 
-    @usableFromInline let condition: Condition
+    private let condition: Condition
 
-    /// Initializes a `Notifier` instance with a fixed number of threads or task
+    /// Initializes a `Semaphore` instance with a fixed number of threads or task
     /// - Parameter size: maximum number of tasks or threads to await
     /// - Returns: nil if the `size` argument is less than zero
-    @inlinable
     public init(size: Int) {
         guard size >= 0 else {
-            preconditionFailure("Cannot initialize an instance of Notifier with count of 0")
+            preconditionFailure("Cannot initialize an instance of Semaphore with count of 0")
         }
-        index = size
+        index = ManagedAtomic(size)
         mutex = Mutex()
         condition = Condition()
     }
 
     /// Indicates that this thread or task has finished its execution.
     /// This should be called only inside the thread or task
-    @inlinable
     public func notify() {
-        mutex.whileLocked {
-            guard index >= 1 else { return }
-            index -= 1
-            if index == 0 {
-                condition.broadcast()
-            }
+        guard index.load(ordering: .relaxed) >= 1 else { return }
+        if index.wrappingDecrementThenLoad(ordering: .acquiringAndReleasing) == 0 {
+            condition.broadcast()
         }
-
     }
 
     /// Blocks until there is no more thread or task running
-    @inlinable
     public func waitForAll() {
         mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: index == 0)
+            condition.wait(mutex: mutex, condition: index.load(ordering: .acquiring) == 0)
         }
     }
 }

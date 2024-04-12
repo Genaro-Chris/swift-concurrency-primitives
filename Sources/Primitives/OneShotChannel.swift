@@ -17,7 +17,7 @@ import Foundation
 ///
 /// let channel = OneShotChannel<Int>()
 /// Task.detached {
-/// // This should be done on a detached task to avoid blocking the caller thread
+///     // This should be done on a detached task to avoid blocking the caller thread
 ///     channel <- (await getIntAsync())
 /// }
 /// // do other work
@@ -29,12 +29,13 @@ import Foundation
 @_eagerMove
 public struct OneShotChannel<Element> {
 
-    @usableFromInline struct Storage<Value> {
-        @usableFromInline var buffer: Value
+    public final class _Storage<Value> {
 
-        @usableFromInline var readyToReceive: Bool
+        var buffer: Value
 
-        @usableFromInline var closed: Bool
+        var readyToReceive: Bool
+
+        var closed: Bool
 
         init(_ value: Value) {
             buffer = value
@@ -43,20 +44,19 @@ public struct OneShotChannel<Element> {
         }
     }
 
-    @usableFromInline let mutex: Mutex
+    private let mutex: Mutex
 
-    @usableFromInline let condition: Condition
+    private let condition: Condition
 
-    @usableFromInline let storage: Box<Storage<Element?>>
+    private let storage: _Storage<Element?>
 
     /// Initializes an instance of `OneShotChannel` type
     public init() {
-        storage = Box(Storage(nil))
+        storage = _Storage(nil)
         mutex = Mutex()
         condition = Condition()
     }
 
-    @inlinable
     public func enqueue(_ item: Element) -> Bool {
         mutex.whileLocked {
             guard !storage.readyToReceive else {
@@ -65,22 +65,17 @@ public struct OneShotChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            storage.interact {
-                $0.buffer = item
-                $0.readyToReceive = true
-            }
+            storage.buffer = item
+            storage.readyToReceive = true
             condition.signal()
             return true
         }
 
     }
 
-    @inlinable
     public func dequeue() -> Element? {
         return mutex.whileLocked {
-            condition.wait(
-                mutex: mutex,
-                condition: storage.readyToReceive || storage.closed)
+            condition.wait(mutex: mutex, condition: storage.readyToReceive || storage.closed)
             let result = storage.buffer
             storage.buffer = nil
             return result
@@ -90,13 +85,16 @@ public struct OneShotChannel<Element> {
 
     public func clear() {
         mutex.whileLocked {
-            storage.interact { $0.buffer = nil }
+            storage.buffer = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLocked { storage.closed = true }
+        mutex.whileLocked {
+            storage.closed = true
+            condition.broadcast()
+        }
     }
 }
 
@@ -117,8 +115,8 @@ extension OneShotChannel {
     public var length: Int {
         return mutex.whileLocked {
             switch storage.buffer {
-                case .none: return 0
-                case .some: return 1
+            case .none: return 0
+            case .some: return 1
             }
         }
     }
@@ -126,8 +124,8 @@ extension OneShotChannel {
     public var isEmpty: Bool {
         return mutex.whileLocked {
             switch storage.buffer {
-                case .none: return true
-                case .some: return false
+            case .none: return true
+            case .some: return false
             }
         }
     }

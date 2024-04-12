@@ -42,9 +42,10 @@ final class WorkerThread: Thread {
 
     override func main() {
         while !self.isCancelled {
-            for work in queue {
+            for operation in queue {
                 isBusy.updateWhileLocked { $0 = true }
-                work()
+                operation()
+                isBusy.updateWhileLocked { $0 = false }
             }
             isBusy.updateWhileLocked { $0 = false }
         }

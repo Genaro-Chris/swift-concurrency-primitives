@@ -42,20 +42,20 @@ enum Program {
         try await Task.sleep(nanoseconds: 2_000_500_000)
 
         async let group: () = withDiscardingTaskGroup { group in
-            for _ in 0 ... 5 {
+            for _ in 0...5 {
                 #if swift(>=6.0) || compiler(>=6.0)
                     group.addTask(executorPreference: globalConcurrentExecutor) {
                         Task { @GlobalActor in globalActorCounter += 1 }
-                        async let _ = specialActorInstance.increment(by: Int.random(in: 1 ... 10))
-                        async let _ = lockInstance.increment(by: Int.random(in: 1 ... 10))
-                        async let _ = normalActor.increment(by: Int.random(in: 1 ... 10))
+                        async let _ = specialActorInstance.increment(by: Int.random(in: 1...10))
+                        async let _ = lockInstance.increment(by: Int.random(in: 1...10))
+                        async let _ = normalActor.increment(by: Int.random(in: 1...10))
                     }
                 #else
                     group.addTask {
                         Task { @GlobalActor in globalActorCounter += 1 }
-                        async let _ = specialActorInstance.increment(by: Int.random(in: 1 ... 10))
-                        async let _ = lockInstance.increment(by: Int.random(in: 1 ... 10))
-                        async let _ = normalActor.increment(by: Int.random(in: 1 ... 10))
+                        async let _ = specialActorInstance.increment(by: Int.random(in: 1...10))
+                        async let _ = lockInstance.increment(by: Int.random(in: 1...10))
+                        async let _ = normalActor.increment(by: Int.random(in: 1...10))
                     }
                 #endif
 

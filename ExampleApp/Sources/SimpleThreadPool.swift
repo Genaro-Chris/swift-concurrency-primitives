@@ -26,9 +26,9 @@ public final class SimpleThreadPool: ThreadPool {
     }
 
     public func pollAll() {
-        (0 ..< threadHandles.count).forEach { _ in
+        (0..<threadHandles.count).forEach { _ in
             queue <- { [barrier] in
-                barrier.arriveAlone()
+                barrier.arriveAndWait()
             }
         }
         barrier.arriveAndWait()
@@ -81,7 +81,7 @@ public final class SimpleThreadPool: ThreadPool {
 private func start(
     queue: some Channel<TaskItem>, size: Int, isBusy: Locked<Bool>
 ) -> [UnnamedThread] {
-    (0 ..< size).map { _ in
+    (0..<size).map { _ in
         UnnamedThread {
             repeat {
                 if let operation = queue.dequeue() {

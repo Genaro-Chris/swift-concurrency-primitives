@@ -1,8 +1,8 @@
 import Atomics
 import Foundation
 
-/// This provides a thread-coordination mechanism that blocks a group of threads of known size until all threads in that group
-///  have reached the latch.
+/// This provides a thread-coordination mechanism that blocks a
+/// group of threads of known size until all threads in that group have reached the latch.
 ///
 /// This enables multiple threads to synchronize the beginning of some computation.
 /// Threads may block on the latch until the counter is decremented to zero.

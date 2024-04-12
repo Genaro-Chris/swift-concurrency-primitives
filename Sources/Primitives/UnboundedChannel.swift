@@ -11,75 +11,73 @@ import Foundation
 @_eagerMove
 public struct UnboundedChannel<Element> {
 
-    @usableFromInline struct Storage<Value> {
+    public final class _Storage<Value> {
 
-        @usableFromInline let buffer: Buffer<Value> = Buffer()
+        let buffer: Buffer<Value>
 
-        @usableFromInline var closed = false
+        var closed: Bool
 
-        @usableFromInline var ready = false
+        var ready: Bool
 
-        @usableFromInline var readyToReceive: Bool {
+        init() {
+            buffer = Buffer()
+            closed = false
+            ready = false
+        }
+
+        var readyToReceive: Bool {
             switch (ready, closed) {
-                case (true, true): true
-                case (true, false): true
-                case (false, true): true
-                case (false, false): false
+            case (true, true): return true
+            case (true, false): return true
+            case (false, true): return true
+            case (false, false): return false
             }
         }
     }
 
-    @usableFromInline let storage: Box<Storage<Element>>
+    private let storage: _Storage<Element>
 
-    @usableFromInline let mutex: Mutex
+    private let mutex: Mutex
 
-    @usableFromInline let condition: Condition
+    private let condition: Condition
 
     /// Initializes an instance of `UnboundedChannel` type
     public init() {
-        storage = Box(Storage())
+        storage = _Storage()
         mutex = Mutex()
         condition = Condition()
     }
 
-    @inlinable
     public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
                 return false
             }
-            storage.interact {
-                if !$0.ready {
-                    $0.ready = true
-                }
-                $0.buffer.enqueue(item)
+            storage.buffer.enqueue(item)
+            if !storage.ready {
+                storage.ready = true
                 condition.signal()
             }
             return true
         }
     }
 
-    @inlinable
     public func dequeue() -> Element? {
         mutex.whileLocked {
             guard !storage.closed else {
-                return storage.interact {
-                    return $0.buffer.dequeue()
-                }
+                return storage.buffer.dequeue()
             }
             condition.wait(mutex: mutex, condition: storage.readyToReceive)
-            return storage.interact {
-                guard !$0.buffer.isEmpty else {
-                    $0.ready = false
-                    return nil
-                }
-                return $0.buffer.dequeue()
+            let result = storage.buffer.dequeue()
+            if storage.buffer.isEmpty {
+                storage.ready = false
             }
+            return result
         }
     }
 
     public func clear() {
-        mutex.whileLocked { storage.interact { $0.buffer.clear() } }
+        mutex.whileLocked { storage.buffer.clear() }
     }
 
     public func close() {

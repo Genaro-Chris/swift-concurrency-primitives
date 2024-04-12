@@ -19,7 +19,7 @@ public protocol ThreadPool {
     func cancel()
 
     /// Indicates if all threads are currently executing some job
-    /// not just idle looping and waiting for jobs to be enqueued
+    /// not just idle, waiting for jobs to be enqueued
     var isBusyExecuting: Bool { get }
 
     /// Block the caller's thread until all enqueued jobs in the pool are done

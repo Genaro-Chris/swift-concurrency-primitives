@@ -71,11 +71,10 @@ final class SynchronizationTests: XCTestCase {
             var scores: [Int]
         }
         @Locked var student = Student(age: 0, scores: [])
-        let waitGroup = WaitGroup()
-        (0 ... 9).forEach { index in
-            waitGroup.enter()
+        let semaphore = Semaphore(size: 10)
+        (0...9).forEach { index in
             DispatchQueue.global().async {
-                defer { waitGroup.done() }
+                defer { semaphore.notify() }
                 $student.updateWhileLocked { student in
                     student.scores.append(index)
                 }
@@ -84,25 +83,25 @@ final class SynchronizationTests: XCTestCase {
                 }
             }
         }
-        waitGroup.waitForAll()
+        semaphore.waitForAll()
         XCTAssertEqual(student.scores.count, 10)
         XCTAssertEqual(student.age, 18)
     }
 
-    func test_notifier() {
-        let notifier = Notifier(size: 3)
+    func test_semaphore() {
+        let semaphore = Semaphore(size: 3)
         @Locked var count = 0
         Task.detached {
             async let _ = withTaskGroup(of: Void.self) { group in
-                for _ in 1 ... 3 {
+                for _ in 1...3 {
                     group.addTask {
                         $count.updateWhileLocked { $0 += 1 }
-                        notifier.notify()
+                        semaphore.notify()
                     }
                 }
             }
         }
-        notifier.waitForAll()
+        semaphore.waitForAll()
         XCTAssertEqual(count, 3)
     }
 
@@ -110,7 +109,7 @@ final class SynchronizationTests: XCTestCase {
         let lock = Lock()
         var total = 0
         let waitGroup = WaitGroup()
-        (1 ... 10).forEach { index in
+        (1...10).forEach { index in
             waitGroup.enter()
             Thread { [waitGroup] in
                 lock.whileLocked {

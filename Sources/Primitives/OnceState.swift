@@ -26,7 +26,7 @@ import Atomics
 @frozen
 public struct OnceState {
 
-    @usableFromInline let done: ManagedAtomic<Bool>
+    private let done: ManagedAtomic<Bool>
 
     /// Initialises an instance of the `OnceState` type
     public init() {
@@ -35,13 +35,10 @@ public struct OnceState {
 
     /// Runs only once per instance of `OnceState` type no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
-    @inlinable
     public func runOnce(body: () throws -> Void) rethrows {
         guard
-            done.compareExchange(
-                expected: false, desired: true, ordering: .relaxed
-            )
-            .exchanged
+            done.compareExchange(expected: false, desired: true, ordering: .relaxed)
+                .exchanged
         else {
             return
         }

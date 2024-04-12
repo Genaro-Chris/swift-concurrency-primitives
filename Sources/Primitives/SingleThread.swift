@@ -73,11 +73,11 @@ public final class SingleThread: ThreadPool {
             return
         }
         switch waitType {
-            case .cancelAll: end()
+        case .cancelAll: end()
 
-            case .waitForAll:
-                pollAll()
-                end()
+        case .waitForAll:
+            pollAll()
+            end()
         }
         handle.join()
     }

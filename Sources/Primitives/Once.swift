@@ -15,17 +15,14 @@ import Atomics
 /// ```
 public enum Once {
 
-    @usableFromInline static let done: ManagedAtomic<Bool> = ManagedAtomic(false)
+    private static let done: ManagedAtomic<Bool> = ManagedAtomic(false)
 
     /// Runs only once per process no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
-    @inlinable
     public static func runOnce(_ body: @escaping () throws -> Void) rethrows {
         guard
-            done.compareExchange(
-                expected: false, desired: true, ordering: .relaxed
-            )
-            .exchanged
+            done.compareExchange(expected: false, desired: true, ordering: .relaxed)
+                .exchanged
         else {
             return
         }

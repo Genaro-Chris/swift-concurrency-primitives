@@ -7,7 +7,7 @@ import Foundation
 /// This `Lock` type will try to acquire the lock and if acquired will block other threads waiting for the lock
 /// to become available before proceeding it's execution.
 ///
-/// This is similar to the C++ [std::mutex](https://en.cppreference.com/w/cpp/thread/mutex) and mutex type in other various languages
+/// This is similar to mutex type in other various languages
 ///
 /// # Example
 ///
@@ -77,7 +77,7 @@ public struct Lock {
     ///
     /// # Note
     /// Avoid calling long running or blocking code while using this function
-    @_transparent @_alwaysEmitIntoClient @inline(__always)
+    @_transparent @_alwaysEmitIntoClient
     public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         return try lock.whileLocked(body)
     }
