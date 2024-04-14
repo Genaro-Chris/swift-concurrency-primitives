@@ -234,7 +234,7 @@ public final class Condition {
             gettimeofday(&currentTime, nil)
 
             // convert into nanoseconds
-            let allNanoSecs: Int = timeout.timeInNano + (currentTime.tv_usec * 1000)
+            let allNanoSecs: Int = timeout.timeInNano + (Int(currentTime.tv_usec) * 1000)
 
             // calculate the timespec from the argument passed
             let timeoutAbs: timespec = timespec(
@@ -251,7 +251,7 @@ public final class Condition {
             clock_gettime(CLOCK_REALTIME, &currentTime)
 
             // convert into nanoseconds
-            let allNanoSecs: Int = timeout.timeInNano + currentTime.tv_nsec
+            let allNanoSecs: Int = timeout.timeInNano + Int(currentTime.tv_nsec)
 
             // calculate the timespec from the argument passed
             let timeoutAbs: timespec = timespec(
