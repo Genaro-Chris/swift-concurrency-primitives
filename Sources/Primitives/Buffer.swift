@@ -1,4 +1,4 @@
-class Buffer<Element> {
+@usableFromInline class Buffer<Element> {
 
     private var innerBuffer: ContiguousArray<Element>
 

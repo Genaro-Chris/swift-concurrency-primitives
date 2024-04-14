@@ -4,17 +4,6 @@ import XCTest
 
 final class SynchronizationTests: XCTestCase {
 
-    func test_locked_over_async() async {
-        @Locked var value = 1
-        async let asyncTask = Task.detached {
-            $value.updateWhileLocked {
-                $0 += 18
-            }
-        }
-        _ = await asyncTask.value
-        XCTAssertEqual(value, 19)
-    }
-
     func test_once() {
         var total = 0
         DispatchQueue.concurrentPerform(iterations: 6) { _ in
@@ -86,23 +75,6 @@ final class SynchronizationTests: XCTestCase {
         semaphore.waitForAll()
         XCTAssertEqual(student.scores.count, 10)
         XCTAssertEqual(student.age, 18)
-    }
-
-    func test_semaphore() {
-        let semaphore = Semaphore(size: 3)
-        @Locked var count = 0
-        Task.detached {
-            async let _ = withTaskGroup(of: Void.self) { group in
-                for _ in 1...3 {
-                    group.addTask {
-                        $count.updateWhileLocked { $0 += 1 }
-                        semaphore.notify()
-                    }
-                }
-            }
-        }
-        semaphore.waitForAll()
-        XCTAssertEqual(count, 3)
     }
 
     func test_wait_group() {

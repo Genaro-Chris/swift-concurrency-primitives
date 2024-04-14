@@ -27,7 +27,7 @@ public final class CustomGlobalExecutor: SerialExecutor {
         self.pool = pool
     }
 
-    static let shared = CustomGlobalExecutor(WorkerPool.globalPool)
+    static let shared = CustomGlobalExecutor(SimpleThreadPool.globalPool)
 }
 
 /// Does what the name implies

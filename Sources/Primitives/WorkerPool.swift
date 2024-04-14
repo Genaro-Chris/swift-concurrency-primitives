@@ -1,11 +1,8 @@
+import Atomics
 import Foundation
 
-/// A collection of fixed size pre-started, idle worker threads that is ready to execute asynchronous
+/// A collection of fixed size of pre-started, idle worker threads that is ready to execute asynchronous
 /// code concurrently between all threads.
-///
-/// It uses a random enqueueing strategy that means the thread which the enqueued job will execute
-/// is not is known and if a thread is assigned a job then that thread will not be assigned
-/// a job until all threads had being jobs
 ///
 /// It is very similar to Swift's [DispatchQueue](https://developer.apple.com/documentation/dispatch/dispatchqueue)
 ///
@@ -20,71 +17,55 @@ import Foundation
 /// ```
 public final class WorkerPool {
 
+    enum QueueOperations {
+
+        case ready(WorkItem)
+        case wait(Barrier)
+    }
+
     let waitType: WaitType
 
-    let handles: [WorkerThread]
+    let queue: UnboundedChannel<QueueOperations>
+
+    let handles: [NamedThread]
 
     let barrier: Barrier
 
     let started: OnceState
 
-    private func end() {
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
-        handles.forEach { $0.cancel() }
-    }
+    let isBusy: ManagedAtomic<Bool>
 
-    private func submitRandomly(_ body: @escaping WorkItem) {
+    func submitRandomly(_ body: @escaping WorkItem) {
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        handles.randomElement()?.submit(body)
-    }
-
-    /// Submits work to a specific thread in the pool
-    /// - Parameters:
-    ///   - index: index of the thread which should execute the work
-    ///   - body: a non-throwing closure that takes and returns void
-    /// - Returns: true if the body was submitted otherwise false
-    public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
-        guard (0..<handles.count).contains(index) else {
-            return false
-        }
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
-        handles[index].submit(body)
-        return true
+        queue <- .ready(body)
     }
 
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
     ///   - waitType: value of `WaitType`
-    /// - Returns: nil if the size argument is less than one
     public init(size: Int, waitType: WaitType) {
         guard size > 0 else {
             preconditionFailure("Cannot initialize an instance of WorkerPool with 0 thread")
         }
         self.waitType = waitType
+        queue = UnboundedChannel()
         barrier = Barrier(size: size + 1)
+        isBusy = ManagedAtomic(false)
         started = OnceState()
-        handles = (0..<size).map { index in
-            return WorkerThread("WorkerPool #\(index)")
-        }
+        handles = start(queue: queue, size: size, isBusy: isBusy)
     }
 
     deinit {
-        guard started.hasExecuted else {
-            return
-        }
+        guard started.hasExecuted else { return }
         switch waitType {
-        case .cancelAll: end()
+        case .cancelAll: cancel()
 
         case .waitForAll:
             pollAll()
-            end()
+            cancel()
         }
         handles.forEach { $0.join() }
     }
@@ -109,28 +90,20 @@ extension WorkerPool: ThreadPool {
     }
 
     public func cancel() {
-        guard started.hasExecuted else {
-            return
-        }
-        handles.forEach {
-            $0.clear()
-        }
+        guard started.hasExecuted else { return }
+        queue.clear()
+        queue.close()
+        handles.forEach { $0.cancel() }
     }
 
     public var isBusyExecuting: Bool {
-        handles.allSatisfy {
-            $0.isBusyExecuting
-        }
+        isBusy.load(ordering: .relaxed)
     }
 
     public func pollAll() {
-        guard started.hasExecuted else {
-            return
-        }
-        handles.forEach { [barrier] handle in
-            handle.submit {
-                barrier.arriveAlone()
-            }
+        guard started.hasExecuted else { return }
+        (0..<handles.count).forEach { _ in
+            queue <- .wait(barrier)
         }
         barrier.arriveAndWait()
     }
@@ -153,5 +126,23 @@ extension WorkerPool: CustomDebugStringConvertible {
             "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
             + ":\n" + threadNames
 
+    }
+}
+
+func start(
+    queue: UnboundedChannel<WorkerPool.QueueOperations>, size: Int, isBusy: ManagedAtomic<Bool>
+) -> [NamedThread] {
+    (0..<size).map { index in
+        NamedThread("WorkerPool #\(index)") {
+            for operation in queue where !Thread.current.isCancelled {
+                switch operation {
+
+                case let .ready(work): work()
+
+                case let .wait(barrier): barrier.arriveAndWait()
+
+                }
+            }
+        }
     }
 }

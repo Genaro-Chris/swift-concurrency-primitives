@@ -7,7 +7,7 @@ import Foundation
 /// This `Lock` type will try to acquire the lock and if acquired will block other threads waiting for the lock
 /// to become available before proceeding it's execution.
 ///
-/// This is similar to mutex type in other various languages
+/// This provides an abstraction over the underlying mutex for each system
 ///
 /// # Example
 ///

@@ -1,7 +1,7 @@
 /// This acts as a mutual exclusion primitive useful for protecting shared data
 ///
-/// This `Locked` type will try to acquire the lock and if acquired will block other threads waiting for the lock
-/// to become available
+/// This `Locked` type will try to acquire the lock and if acquired will block other threads waiting for the lock,
+/// later releasing the lock to become available for other threads
 ///
 /// Each `Locked` type has a generic type parameter which represents the data that it is protecting.
 /// The data can be accessed through in the following ways:
@@ -10,27 +10,32 @@
 ///
 ///
 /// This `Locked` type is also a property wrapper which means it can be created
-/// easily as follows and it provides a projected value which that safely cross
-/// async-await contexts
-///
+/// easily as follows and it provides a projected value which can be easily 
+/// used to update the value.
+/// 
+/// # Examples
+/// a) Using the property wrapper
+/// 
 /// ```swift
-/// @Locked var lockedInteger = 0
-/// await withTaskGroup(of: Void.self) { group in
-///     for i in 1...10 {
-///         group.addTask {
-///             $lockedInteger.updateWhileLocked {
-///                 $0 += i
-///             }
-///         }
+/// struct Student {
+///     var age: Int
+///     var scores: [Int]
+/// }
+/// @Locked var student = Student(age: 0, scores: [])
+/// DispatchQueue.concurrentPerform(iterations: 10) { index in
+///     student.updateWhileLocked { student in
+///         student.scores.append(index)
 ///     }
-///  }
-///
-/// assert(lockedInteger == 55)
+///     if index == 9 {
+///         student.age = 18
+///     }
+/// }
+/// assert(student.scores.count == 10)
+/// assert(student.age == 18)
 /// ```
 ///
-///
-/// # Example
-///
+/// b) Using the Locked type
+/// 
 /// ```swift
 /// struct Student {
 ///     var age: Int
@@ -38,7 +43,7 @@
 /// }
 /// var student = Locked(Student(age: 0, scores: []))
 /// DispatchQueue.concurrentPerform(iterations: 10) { index in
-///     student.updateWhileLocked { student in
+///     $student.updateWhileLocked { student in
 ///         student.scores.append(index)
 ///     }
 ///     if index == 9 {
@@ -52,11 +57,11 @@
 @propertyWrapper
 @dynamicMemberLookup
 @_fixed_layout
-public final class Locked<Element>: @unchecked Sendable {
+public final class Locked<Element> {
 
-    private let lock: Lock
+    let lock: Lock
 
-    private var innerValue: UnsafeMutablePointer<Element>
+    var innerValue: Element
 
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
@@ -71,16 +76,10 @@ public final class Locked<Element>: @unchecked Sendable {
     /// Initialises an instance of the `Locker` type with a value to be protected
     public init(_ value: Element) {
         lock = Lock()
-        innerValue = UnsafeMutablePointer.allocate(capacity: 1)
-        innerValue.initialize(to: value)
+        innerValue = value
     }
 
-    deinit {
-        innerValue.deinitialize(count: 1)
-        innerValue.deallocate()
-    }
-
-    /// This function will block the local thread until it acquires the lock.
+    /// This function will block the current thread until it acquires the lock.
     /// Upon acquiring the lock, only this thread can access or update the value stored in this type.
     /// - Parameter using: a closure that updates or changes the value stored in this type
     /// - Returns: value returned from the `using` closure
@@ -90,7 +89,7 @@ public final class Locked<Element>: @unchecked Sendable {
     ///
     public func updateWhileLocked<T>(_ using: (inout Element) throws -> T) rethrows -> T {
         return try lock.whileLocked {
-            return try using(&innerValue.pointee)
+            return try using(&innerValue)
         }
     }
 
@@ -99,7 +98,7 @@ public final class Locked<Element>: @unchecked Sendable {
         self.init(value)
     }
 
-    /// An instance of Locked type that can safely cross over async-await context
+    /// An instance of Locked type
     public var projectedValue: Locked<Element> {
         return self
     }

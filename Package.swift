@@ -15,7 +15,8 @@ let package = Package(
             targets: ["Primitives"])
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-atomics", from: "1.2.0")
+        .package(url: "https://github.com/apple/swift-atomics", from: "1.2.0"),
+        .package(url: "https://github.com/apple/swift-docc", branch: "main")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.

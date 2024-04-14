@@ -9,15 +9,15 @@ public enum TimeDuration {
 extension TimeDuration {
 
     /// Converts current time duration into nanoseconds
-    var timeInNano: Int64 {
+    var timeInNano: Int {
         switch self {
-        case let .nanoseconds(time): return Int64(time)
+        case let .nanoseconds(time): return Int(time)
 
-        case let .microseconds(time): return Int64(time * 1_000)
+        case let .microseconds(time): return Int(time * 1_000)
 
-        case let .milliseconds(time): return Int64(time * 1_000_000)
+        case let .milliseconds(time): return Int(time * 1_000_000)
 
-        case let .seconds(time): return Int64(time * 1_000_000_000)
+        case let .seconds(time): return Int(time * 1_000_000_000)
 
         }
     }

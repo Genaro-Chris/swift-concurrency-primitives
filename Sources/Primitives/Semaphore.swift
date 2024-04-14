@@ -28,11 +28,11 @@ import Foundation
 @frozen
 public struct Semaphore {
 
-    private let index: ManagedAtomic<Int>
+    let index: ManagedAtomic<Int>
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private let condition: Condition
+    let condition: Condition
 
     /// Initializes a `Semaphore` instance with a fixed number of threads or task
     /// - Parameter size: maximum number of tasks or threads to await

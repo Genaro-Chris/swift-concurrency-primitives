@@ -10,14 +10,13 @@ import Foundation
 /// # Example
 ///
 /// ```swift
-/// func getIntAsync() async -> Int {
+/// func getInt() -> Int {
 ///     // perform some operation
 ///     return Int.random(in: 0 ... 1000)
 /// }
 ///
 /// let channel = OneShotChannel<Int>()
-/// Task.detached {
-///     // This should be done on a detached task to avoid blocking the caller thread
+/// DispatchQueue.global() {
 ///     channel <- (await getIntAsync())
 /// }
 /// // do other work
@@ -29,7 +28,7 @@ import Foundation
 @_eagerMove
 public struct OneShotChannel<Element> {
 
-    public final class _Storage<Value> {
+    @usableFromInline final class _Storage<Value> {
 
         var buffer: Value
 
@@ -44,11 +43,11 @@ public struct OneShotChannel<Element> {
         }
     }
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private let condition: Condition
+    let condition: Condition
 
-    private let storage: _Storage<Element?>
+    let storage: _Storage<Element?>
 
     /// Initializes an instance of `OneShotChannel` type
     public init() {

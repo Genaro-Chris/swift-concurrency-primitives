@@ -11,13 +11,13 @@ import Foundation
 @_fixed_layout
 public final class Barrier {
 
-    private let condition: Condition
+    let condition: Condition
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private var blockedThreadsCount: Int
+    var blockedThreadsCount: Int
 
-    private let threadCount: Int
+    let threadCount: Int
 
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use

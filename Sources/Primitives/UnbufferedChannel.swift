@@ -18,7 +18,7 @@ import Foundation
 @_eagerMove
 public struct UnbufferedChannel<Element> {
 
-    public final class _Storage<Value> {
+    @usableFromInline final class _Storage<Value> {
 
         init() {
             innerValue = nil
@@ -72,13 +72,13 @@ public struct UnbufferedChannel<Element> {
         }
     }
 
-    private let storage: _Storage<Element>
+    let storage: _Storage<Element>
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private let sendCondition: Condition
+    let sendCondition: Condition
 
-    private let receiveCondition: Condition
+    let receiveCondition: Condition
 
     /// Initializes an instance of `UnbufferedChannel` type
     public init() {

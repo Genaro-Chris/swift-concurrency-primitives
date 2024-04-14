@@ -11,7 +11,7 @@ import Foundation
 @_eagerMove
 public struct BoundedChannel<Element> {
 
-    public final class _Storage<Value> {
+    @usableFromInline final class _Storage<Value> {
 
         let capacity: Int
 
@@ -59,13 +59,13 @@ public struct BoundedChannel<Element> {
         }
     }
 
-    private let storage: _Storage<Element>
+    let storage: _Storage<Element>
 
-    private let sendCondition: Condition
+    let sendCondition: Condition
 
-    private let receiveCondition: Condition
+    let receiveCondition: Condition
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
     /// Maximum number of stored items at any given time
     public var capacity: Int {

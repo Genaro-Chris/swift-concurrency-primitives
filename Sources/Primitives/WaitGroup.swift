@@ -1,11 +1,10 @@
 import Foundation
 
-/// This waits for a number of threads or tasks to finish.
+/// This waits for a number of threads to finish.
 ///
 /// The caller threads calls ``enter()`` a number of times to set the number of
-/// threads to wait for. Then each of the threads or tasks
-/// runs and calls ``done()`` when finished. Then,
-/// ``waitForAll()`` can be used to block until all threads have finished.
+/// threads to wait for. Then each of the threads runs and calls ``done()`` when finished.
+///  Then, ``waitForAll()`` can be used to block until all threads have finished.
 ///
 /// This is similar to Go's [sync.WaitGroup](https://pkg.go.dev/sync#WaitGroup)
 /// and Swift's [DispatchGroup](https://developer.apple.com/documentation/dispatch/dispatchgroup)
@@ -16,7 +15,7 @@ import Foundation
 /// let waitGroup = WaitGroup()
 /// for _ in 1...5 {
 ///     waitGroup.enter()
-///     Task.detached {
+///     DispatchQueue.global.async {
 ///         defer {
 ///             waitGroup.done()
 ///         }
@@ -28,11 +27,11 @@ import Foundation
 @_fixed_layout
 public final class WaitGroup {
 
-    private var index: Int
+    var index: Int
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private let condition: Condition
+    let condition: Condition
 
     /// Initializes a `WaitGroup` instance
     public init() {
@@ -41,8 +40,8 @@ public final class WaitGroup {
         condition = Condition()
     }
 
-    /// This indicates that a new thread or task is about to start.
-    /// This should be called only outside the thread or task
+    /// This indicates that a new thread is about to start.
+    /// This should be called only outside the thread doing the work.
     public func enter() {
         mutex.whileLocked {
             index += 1
@@ -50,7 +49,7 @@ public final class WaitGroup {
     }
 
     /// Indicates that it is done executing this thread.
-    /// This should be called only in the thread or task
+    /// This should be called only in the thread doing the work.
     public func done() {
         mutex.whileLocked {
             guard index > 0 else { return }

@@ -18,15 +18,15 @@ import Foundation
 /// ```
 public final class SingleThread: ThreadPool {
 
-    private let handle: WorkerThread
+    let handle: WorkerThread
 
-    private let waitType: WaitType
+    let waitType: WaitType
 
-    private let barrier: Barrier
+    let barrier: Barrier
 
-    private let started: OnceState
+    let started: OnceState
 
-    private func end() {
+    func end() {
         handle.cancel()
     }
 
@@ -42,6 +42,7 @@ public final class SingleThread: ThreadPool {
     }
 
     public func cancel() {
+        guard started.hasExecuted  else { return }
         handle.clear()
     }
 
@@ -61,17 +62,13 @@ public final class SingleThread: ThreadPool {
     }
 
     public func pollAll() {
-        guard !handle.isEmpty && !isBusyExecuting else {
-            return
-        }
+        guard started.hasExecuted else { return }
         handle.submit { [barrier] in barrier.arriveAlone() }
         barrier.arriveAndWait()
     }
 
     deinit {
-        guard started.hasExecuted else {
-            return
-        }
+        guard started.hasExecuted else { return }
         switch waitType {
         case .cancelAll: end()
 

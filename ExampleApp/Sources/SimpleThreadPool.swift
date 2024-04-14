@@ -1,95 +1,109 @@
-import Atomics
 import Foundation
 @_spi(ThreadSync) import Primitives
 
 /// Simple Implementation of the `ThreadPool` type
-public final class SimpleThreadPool: ThreadPool {
+public final class SimpleThreadPool {
 
-    private let queue: any Channel<TaskItem>
+    let waitType: WaitType
 
-    private let threadHandles: [UnnamedThread]
+    let handles: [UnnamedThread]
 
-    private let barrier: Barrier
+    let barrier: Barrier
 
-    private let onceFlag: OnceState
+    let started: OnceState
 
-    private let wait: WaitType
-
-    private let isBusy: Locked<Bool>
-
-    public static let globalPool: SimpleThreadPool =
-        SimpleThreadPool(
-            size: ProcessInfo.processInfo.processorCount, waitType: .waitForAll)!
-
-    public var isBusyExecuting: Bool {
-        isBusy.updateWhileLocked { $0 }
+    private func end() {
+        started.runOnce {
+            handles.forEach { $0.start() }
+        }
+        handles.forEach { $0.cancel() }
     }
 
-    public func pollAll() {
-        (0..<threadHandles.count).forEach { _ in
-            queue <- { [barrier] in
-                barrier.arriveAndWait()
-            }
+    private func submitRandomly(_ body: @escaping WorkItem) {
+        started.runOnce {
+            handles.forEach { $0.start() }
         }
-        barrier.arriveAndWait()
+        handles.randomElement()?.submit(body)
     }
 
-    public init?(
-        size: Int, waitType: WaitType
-    ) {
-        guard size >= 1 else {
-            return nil
+    public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
+        guard (0..<handles.count).contains(index) else {
+            return false
         }
-        wait = waitType
-        queue = UnboundedChannel()
+        started.runOnce {
+            handles.forEach { $0.start() }
+        }
+        handles[index].submit(body)
+        return true
+    }
+
+    public init(size: Int, waitType: WaitType) {
+        guard size > 0 else {
+            preconditionFailure("Cannot initialize an instance of SimpleThreadPool with 0 thread")
+        }
+        self.waitType = waitType
         barrier = Barrier(size: size + 1)
-        onceFlag = OnceState()
-        isBusy = Locked(false)
-        threadHandles = start(queue: queue, size: size, isBusy: isBusy)
-    }
-
-    public func submit(_ body: @escaping TaskItem) {
-        onceFlag.runOnce {
-            threadHandles.forEach { $0.start() }
+        started = OnceState()
+        handles = (0..<size).map { index in
+            return UnnamedThread("SimpleThreadPool #\(index)")
         }
-        queue <- body
-    }
-
-    public func async(_ body: @escaping SendableTaskItem) {
-        onceFlag.runOnce {
-            threadHandles.forEach { $0.start() }
-        }
-        queue <- body
-    }
-
-    public func cancel() {
-        queue.close()
-        threadHandles.forEach { $0.cancel() }
     }
 
     deinit {
-        switch wait {
-        case .cancelAll:
-            cancel()
+        guard started.hasExecuted else {
+            return
+        }
+        switch waitType {
+        case .cancelAll: end()
+
         case .waitForAll:
             pollAll()
-            cancel()
+            end()
         }
+        handles.forEach { $0.join() }
     }
 }
 
-private func start(
-    queue: some Channel<TaskItem>, size: Int, isBusy: Locked<Bool>
-) -> [UnnamedThread] {
-    (0..<size).map { _ in
-        UnnamedThread {
-            repeat {
-                if let operation = queue.dequeue() {
-                    isBusy.updateWhileLocked { $0 = true }
-                    operation()
-                    isBusy.updateWhileLocked { $0 = false }
-                }
-            } while !Thread.current.isCancelled
+extension SimpleThreadPool {
+
+    public static let globalPool = SimpleThreadPool(
+        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .waitForAll)
+}
+
+extension SimpleThreadPool: ThreadPool {
+
+    public func async(_ body: @escaping SendableWorkItem) {
+        submitRandomly(body)
+    }
+
+    public func submit(_ body: @escaping WorkItem) {
+        submitRandomly(body)
+    }
+
+    public func cancel() {
+        guard started.hasExecuted else {
+            return
         }
+        handles.forEach {
+            $0.clear()
+        }
+    }
+
+    public var isBusyExecuting: Bool {
+        handles.allSatisfy {
+            $0.isBusyExecuting
+        }
+    }
+
+    public func pollAll() {
+        guard started.hasExecuted else {
+            return
+        }
+        handles.forEach { [barrier] handle in
+            handle.submit {
+                barrier.arriveAlone()
+            }
+        }
+        barrier.arriveAndWait()
     }
 }

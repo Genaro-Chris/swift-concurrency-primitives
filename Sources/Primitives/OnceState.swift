@@ -26,7 +26,7 @@ import Atomics
 @frozen
 public struct OnceState {
 
-    private let done: ManagedAtomic<Bool>
+    let done: ManagedAtomic<Bool>
 
     /// Initialises an instance of the `OnceState` type
     public init() {

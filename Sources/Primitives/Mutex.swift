@@ -12,15 +12,15 @@
 #endif
 
 /// A threading mutex based on `libpthread` library on non windows systems or Slim
-/// Reader-Writer Lock on windows system.
+/// Reader-Writer Locks on windows system.
 ///
-/// This object provides a mutex on top of a single `pthread_mutex_t` or `SRWLOCK`. This kind
+/// This object provides a safe abstraction on top of a single `pthread_mutex_t` or `SRWLOCK`. This kind
 /// of mutex is safe to use with `libpthread`-based threading models as well as windows
 /// systems.
 @_fixed_layout
 public final class Mutex {
 
-    /// Type for Mutex attributes for non Windows systems
+    /// Specifies the mutex type
     /// Has no effect on Windows system
     public enum MutexType: Int32 {
         /// normal type
@@ -34,7 +34,7 @@ public final class Mutex {
     #else
         let mutex: UnsafeMutablePointer<pthread_mutex_t>
 
-        private let mutexAttr: UnsafeMutablePointer<pthread_mutexattr_t>
+        let mutexAttr: UnsafeMutablePointer<pthread_mutexattr_t>
 
         let mutexType: MutexType
     #endif

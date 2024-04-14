@@ -11,11 +11,11 @@ import Foundation
 @_fixed_layout
 public final class Latch {
 
-    private let condition: Condition
+    let condition: Condition
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private var blockedThreadsCount: Int
+    var blockedThreadsCount: Int
 
     /// Initialises an instance of the `Latch` type
     /// - Parameter size: the number of threads to use
@@ -33,6 +33,9 @@ public final class Latch {
     /// until the instance's count drops to zero
     public func decrementAndWait() {
         mutex.whileLocked {
+            guard blockedThreadsCount > 0 else {
+                return
+            }
             blockedThreadsCount -= 1
             guard blockedThreadsCount != 0 else {
                 condition.broadcast()
@@ -46,6 +49,9 @@ public final class Latch {
     /// without blocking the current thread
     public func decrementAlone() {
         mutex.whileLocked {
+            guard blockedThreadsCount > 0 else {
+                return
+            }
             blockedThreadsCount -= 1
             guard blockedThreadsCount != 0 else {
                 condition.broadcast()

@@ -12,20 +12,6 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(result.count, 10)
     }
 
-    func test_queue_over_async() async {
-        let queue = Queue<String>()
-        await withTaskGroup(of: Void.self) { group in
-            (0...9).forEach { index in
-                group.addTask {
-                    queue.enqueue("\(index)")
-                }
-            }
-        }
-        let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map { String($0) }
-        let result = queue.map { $0 }.sorted()
-        XCTAssertEqual(result, expected)
-        XCTAssertEqual(result.count, 10)
-    }
 
     func test_latch() {
         var queue = 0

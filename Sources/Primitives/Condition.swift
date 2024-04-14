@@ -13,16 +13,23 @@ import Atomics
     #error("Unable to identify your underlying C library.")
 #endif
 
-/// A Condition Variable
+/// A Condition Variable type
 ///
-/// Condition variables provides the ability to block a thread such that
+/// Condition variables provides the ability to block a thread in such a way that
 /// it consumes no CPU time while waiting for an event to occur.
-/// Condition variables are typically associated with a boolean predicate
-///  (a condition), or time measured in seconds and a mutex.
-/// The predicate is always verified inside of the mutex before determining that a thread must block.
-///
+/// They are typically associated with a boolean predicate
+///  (a condition), or time duration and a mutex.
+/// 
+/// When a condition variable blockes a thread, it is usually unblocked when the predicate passed as argument changes, 
+/// a signal or broadcast is received.
+/// 
 /// Methods of this class will block the current thread of execution.
-/// Note that any attempt to use multiple mutexes on the same condition variable may result in
+/// 
+/// This object provides a safe abstraction on top of a single `pthread_cond_t` on pthread based system 
+/// or `CONDITION_VARIABLE` on windows system.
+/// 
+/// # Note
+/// Any attempt to use multiple mutexes on the same condition variable may result in
 /// an undefined behaviour at runtime
 @_fixed_layout
 public final class Condition {
@@ -196,7 +203,7 @@ public final class Condition {
         #endif
     }
 
-    ///
+    /// Signals only one thread to wake itself up
     public func signal() {
         #if os(Windows)
             WakeConditionVariable(condition)
@@ -205,7 +212,7 @@ public final class Condition {
         #endif
     }
 
-    ///
+    /// Broadcast to all blocked threads to wake up
     public func broadcast() {
         #if os(Windows)
             WakeAllConditionVariable(condition)
@@ -214,25 +221,27 @@ public final class Condition {
             precondition(err == 0, "\(#function) failed due to \(err)")
         #endif
     }
-    
+
     func getTimeSpec(with timeout: TimeDuration) -> timespec {
-        // converts seconds into nanoseconds
-        let nsecsPerSec: Int64 = 1_000_000_000
+        
+        // helps convert seconds into nanoseconds
+        let nsecsPerSec: Int = 1_000_000_000
 
         #if canImport(Darwin) || os(macOS)
 
-            var currentTime: timeval = timeval()
             // get the current time
+            var currentTime: timeval = timeval()
             gettimeofday(&currentTime, nil)
 
-            let allNSecs: Int64 = timeout.timeInNano + Int64(currentTime.tv_usec) * 1000
+            // convert into nanoseconds
+            let allNanoSecs: Int = timeout.timeInNano + (currentTime.tv_usec * 1000)
 
             // calculate the timespec from the argument passed
             let timeoutAbs: timespec = timespec(
-                tv_sec: currentTime.tv_sec + Int((allNSecs / nsecsPerSec)),
-                tv_nsec: Int(allNSecs % nsecsPerSec))
+                tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
+                tv_nsec: allNanoSecs % nsecsPerSec)
 
-            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < Int(nsecsPerSec))
+            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
             assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
 
         #elseif os(Linux)
@@ -241,14 +250,16 @@ public final class Condition {
             var currentTime: timespec = timespec(tv_sec: 0, tv_nsec: 0)
             clock_gettime(CLOCK_REALTIME, &currentTime)
 
+            // convert into nanoseconds
+            let allNanoSecs: Int = timeout.timeInNano + currentTime.tv_nsec
+
             // calculate the timespec from the argument passed
-            let allNSecs: Int64 = (timeout.timeInNano + Int64(currentTime.tv_nsec)) / nsecsPerSec
             let timeoutAbs: timespec = timespec(
-                tv_sec: currentTime.tv_sec + Int(allNSecs / nsecsPerSec),
-                tv_nsec: currentTime.tv_nsec + Int(allNSecs % nsecsPerSec)
+                tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
+                tv_nsec: allNanoSecs % nsecsPerSec
             )
 
-            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < Int(nsecsPerSec))
+            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
             assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
 
         #endif

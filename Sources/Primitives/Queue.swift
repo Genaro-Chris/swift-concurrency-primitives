@@ -21,12 +21,13 @@
 ///     print("\(value)")
 /// }
 /// ```
+@frozen
 @_eagerMove
 public struct Queue<Element> {
 
-    private let buffer: Buffer<Element>
+    let buffer: Buffer<Element>
 
-    private let lock: Lock
+    let lock: Lock
 
     /// Initializes an instance of the `Queue` type
     public init() {

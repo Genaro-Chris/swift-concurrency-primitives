@@ -23,7 +23,6 @@ public protocol Channel<Element>: IteratorProtocol, Sequence {
     /// Enqueues an item into the `Channel` instance
     /// - Parameter item: item to be enqueued
     /// - Returns: true if sent otherwise false
-    @discardableResult
     func enqueue(_ item: Element) -> Bool
 
     /// Dequeues an item from the `Channel` instance
@@ -43,7 +42,7 @@ extension Channel {
 
     /// Enqueues an item into a `Channel` instance
     public static func <- (channel: Self, value: Element) {
-        channel.enqueue(value)
+        _ = channel.enqueue(value)
     }
 
     /// Dequeues an item from the `Channel` instance
@@ -55,7 +54,7 @@ extension Channel {
 /// Enqueues an item into a `Channel` instance
 public func <- <Element, ChannelType>(channel: ChannelType, value: Element)
 where ChannelType: Channel, ChannelType.Element == Element {
-    channel.enqueue(value)
+    _ = channel.enqueue(value)
 }
 
 /// Dequeues an item from the `Channel` instance

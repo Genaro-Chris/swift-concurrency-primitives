@@ -14,17 +14,6 @@ final class ChannelTests: XCTestCase {
 
     }
 
-    func test_one_shot_channel_across_async() async {
-        let random = Int.random(in: 1...1000)
-        let channel = OneShotChannel<Int>()
-        Task.detached {
-            channel <- random
-        }
-        if let value = <-channel {
-            XCTAssertEqual(random, value)
-        }
-    }
-
     func test_zero_or_one_buffer_channel() {
         let channel = UnbufferedChannel<Int>()
         let handle = SingleThread(waitType: .waitForAll)
@@ -88,13 +77,4 @@ final class ChannelTests: XCTestCase {
         XCTAssertEqual(result, expected)
     }
 
-    func test_channel_across_async() {
-        let channel = UnbufferedChannel<Int>()
-        Task { [channel] in
-            channel <- 18
-        }
-        if let value = <-channel {
-            XCTAssertEqual(value, 18)
-        }
-    }
 }

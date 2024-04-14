@@ -7,14 +7,14 @@ public typealias SendableWorkItem = @Sendable () -> Void
 
 final class WorkerThread: Thread {
 
-    private let latch: Latch
+    let latch: Latch
 
-    private let queue: UnboundedChannel<() -> Void>
+    let queue: UnboundedChannel<() -> Void>
 
-    private let threadName: String
+    let threadName: String
 
     var isBusyExecuting: Bool {
-        isBusy.updateWhileLocked { $0 }
+        isBusy.load(ordering: .relaxed)
     }
 
     var isEmpty: Bool {
@@ -26,7 +26,7 @@ final class WorkerThread: Thread {
         set {}
     }
 
-    private let isBusy: Locked<Bool>
+    let isBusy: ManagedAtomic<Bool>
 
     func submit(_ body: @escaping () -> Void) {
         queue <- body
@@ -35,7 +35,7 @@ final class WorkerThread: Thread {
     init(_ name: String) {
         latch = Latch(size: 1)
         queue = UnboundedChannel()
-        isBusy = Locked(false)
+        isBusy = ManagedAtomic(false)
         threadName = name
         super.init()
     }
@@ -43,11 +43,11 @@ final class WorkerThread: Thread {
     override func main() {
         while !self.isCancelled {
             for operation in queue {
-                isBusy.updateWhileLocked { $0 = true }
+                isBusy.store(true, ordering: .relaxed)
                 operation()
-                isBusy.updateWhileLocked { $0 = false }
+                isBusy.store(false, ordering: .relaxed)
             }
-            isBusy.updateWhileLocked { $0 = false }
+            isBusy.store(false, ordering: .relaxed)
         }
         latch.decrementAndWait()
     }

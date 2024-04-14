@@ -11,7 +11,7 @@ import Foundation
 @_eagerMove
 public struct UnboundedChannel<Element> {
 
-    public final class _Storage<Value> {
+    @usableFromInline final class _Storage<Value> {
 
         let buffer: Buffer<Value>
 
@@ -35,11 +35,11 @@ public struct UnboundedChannel<Element> {
         }
     }
 
-    private let storage: _Storage<Element>
+    let storage: _Storage<Element>
 
-    private let mutex: Mutex
+    let mutex: Mutex
 
-    private let condition: Condition
+    let condition: Condition
 
     /// Initializes an instance of `UnboundedChannel` type
     public init() {
@@ -56,8 +56,8 @@ public struct UnboundedChannel<Element> {
             storage.buffer.enqueue(item)
             if !storage.ready {
                 storage.ready = true
-                condition.signal()
             }
+            condition.signal()
             return true
         }
     }
