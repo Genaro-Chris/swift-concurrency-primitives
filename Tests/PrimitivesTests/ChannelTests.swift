@@ -16,7 +16,7 @@ final class ChannelTests: XCTestCase {
 
     func test_zero_or_one_buffer_channel() {
         let channel = UnbufferedChannel<Int>()
-        let handle = SingleThread(waitType: .waitForAll)
+        let handle = WorkerThread(waitType: .waitForAll)
         handle.submit {
             let array = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             channel.enumerated().forEach { (index, item) in XCTAssertEqual(item, array[index]) }
@@ -31,7 +31,7 @@ final class ChannelTests: XCTestCase {
 
     func test_bounded_channel() {
         let channel = BoundedChannel<Int>(size: 3)
-        let handle = SingleThread(waitType: .waitForAll)
+        let handle = WorkerThread(waitType: .waitForAll)
         let pool = WorkerPool(size: 4, waitType: .waitForAll)
         handle.submit {
             let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]

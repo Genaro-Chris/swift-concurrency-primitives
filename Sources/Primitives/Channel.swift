@@ -8,7 +8,7 @@
 /// This construct blocks a thread on either the sending or receiving parts so it is
 /// highly advised to avoid using together with the Swift modern concurrency that is in async-await contexts
 /// because it blocks tasks from making forward progress
-public protocol Channel<Element>: IteratorProtocol, Sequence {
+public protocol Channel {
     associatedtype Element
 
     /// Indicates if `Channel` is closed

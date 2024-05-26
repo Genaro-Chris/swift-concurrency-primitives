@@ -1,4 +1,4 @@
-@_spi(ThreadSync) @testable import Primitives
+@_spi(ThreadSync) @_spi(Sync) @testable import Primitives
 import XCTest
 
 final class PrimitivesTests: XCTestCase {
@@ -48,7 +48,7 @@ final class PrimitivesTests: XCTestCase {
 
     func test_barrier() {
         let barrier = Barrier(size: 2)
-        let semaphore = Semaphore(size: 10)
+        let semaphore = LockSemaphore(size: 10)
         let lock = Lock()
         var total = 0
         XCTAssertNotNil(barrier)
@@ -98,7 +98,7 @@ final class PrimitivesTests: XCTestCase {
 
     func testConditionWithSignal() {
         let condition = Condition()
-        let lock = Mutex(type: .normal)
+        let lock = Mutex()
         var total = 0
         let threadHanddles = (1...5).map { index in
             Thread {

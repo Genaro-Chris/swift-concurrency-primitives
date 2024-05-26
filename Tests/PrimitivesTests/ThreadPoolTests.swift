@@ -33,7 +33,7 @@ final class ThreadPoolTests: XCTestCase {
 
     func test_singlethread() {
         @Locked var total = 0
-        let handle = SingleThread(waitType: .cancelAll)
+        let handle = WorkerThread(waitType: .cancelAll)
         for index in 1...10 {
             handle.submit {
                 $total.updateWhileLocked { $0 += index }
@@ -46,7 +46,7 @@ final class ThreadPoolTests: XCTestCase {
     func test_cancelling_singlethread() {
         @Locked var total = 0
         do {
-            let handle = SingleThread(waitType: .cancelAll)
+            let handle = WorkerThread(waitType: .cancelAll)
             for index in 1...10 {
                 handle.submit {
                     Thread.sleep(forTimeInterval: 0.7)

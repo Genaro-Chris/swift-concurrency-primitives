@@ -8,11 +8,19 @@ import Foundation
 @_spi(OtherChannels)
 public struct BoundedChannel<Element> {
 
-    final class _Storage<Value> {
+    final class Storage {
+
+        var buffer: ContiguousArray<Element>
+
+        var count: Int {
+            buffer.count
+        }
+
+        var isEmpty: Bool {
+            buffer.isEmpty
+        }
 
         let capacity: Int
-
-        let buffer: Buffer<Value>
 
         var send: Bool
 
@@ -24,7 +32,7 @@ public struct BoundedChannel<Element> {
 
         init(capacity: Int) {
             self.capacity = capacity
-            buffer = Buffer<Value>()
+            buffer = ContiguousArray()
             send = true
             receive = false
             bufferCount = 0
@@ -54,9 +62,24 @@ public struct BoundedChannel<Element> {
             case (false, false): return false
             }
         }
+
+        func enqueue(_ item: Element) {
+            buffer.append(item)
+        }
+
+        func dequeue() -> Element? {
+            guard !buffer.isEmpty else {
+                return nil
+            }
+            return buffer.removeFirst()
+        }
+
+        func clear() {
+            buffer.removeAll()
+        }
     }
 
-    let storage: _Storage<Element>
+    let storage: Storage
 
     let sendCondition: Condition
 
@@ -78,7 +101,7 @@ public struct BoundedChannel<Element> {
         guard size > 0 else {
             preconditionFailure("Cannot initialize this channel with capacity of 0")
         }
-        storage = _Storage(capacity: size)
+        storage = Storage(capacity: size)
         sendCondition = Condition()
         receiveCondition = Condition()
         mutex = Mutex()
@@ -97,7 +120,7 @@ public struct BoundedChannel<Element> {
             if storage.bufferCount == storage.capacity {
                 storage.send = false
             }
-            storage.buffer.enqueue(item)
+            storage.enqueue(item)
             storage.receive = true
             receiveCondition.signal()
             return true
@@ -107,7 +130,7 @@ public struct BoundedChannel<Element> {
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
-                return storage.buffer.dequeue()
+                return storage.dequeue()
             }
             receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
             storage.bufferCount -= 1
@@ -116,13 +139,13 @@ public struct BoundedChannel<Element> {
             }
             storage.send = true
             sendCondition.signal()
-            return storage.buffer.dequeue()
+            return storage.dequeue()
         }
     }
 
     public func clear() {
         mutex.whileLocked {
-            storage.buffer.clear()
+            storage.clear()
         }
     }
 
@@ -135,7 +158,7 @@ public struct BoundedChannel<Element> {
     }
 }
 
-extension BoundedChannel {
+extension BoundedChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()
@@ -151,12 +174,12 @@ extension BoundedChannel {
 
     public var length: Int {
         return mutex.whileLocked {
-            storage.buffer.count
+            storage.count
         }
     }
 
     public var isEmpty: Bool {
-        storage.buffer.isEmpty
+        storage.isEmpty
     }
 }
 

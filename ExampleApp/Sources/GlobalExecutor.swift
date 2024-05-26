@@ -1,10 +1,6 @@
 import Foundation
 @preconcurrency import Primitives
 
-public typealias TaskItem = () -> Void
-
-public typealias SendableTaskItem = @Sendable () -> Void
-
 /// The class that replaces the global concurrency by enqueueing jobs onto some `ThreadPool` type
 public final class CustomGlobalExecutor: SerialExecutor {
     public func asUnownedSerialExecutor() -> UnownedSerialExecutor {

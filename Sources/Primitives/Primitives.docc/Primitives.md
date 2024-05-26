@@ -22,7 +22,7 @@ This package also provides some constructs that synchronize concurrent accesses 
 
 This package even provide some constructs for threads co-ordination by waiting for all threads to finish their execution
 
-- ``Notifier``
+- ``LockSemaphore``
 - ``WaitGroup``
 
 
@@ -39,7 +39,7 @@ This package provides some concurrency constructs that enable threads share memo
 
 This package provides some concurrency constructs that efficiently manage a fized size of worker threads ready to execute code. 
 
-- ``SingleThread``
+- ``WorkerThread``
 - ``WorkerPool``
 
 ### Call Once

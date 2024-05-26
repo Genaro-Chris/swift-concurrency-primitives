@@ -106,15 +106,15 @@ public final class Locked<Element> {
 extension Locked {
 
     public subscript<T>(dynamicMember memberKeyPath: KeyPath<Element, T>) -> T {
-        updateWhileLocked { $0[keyPath: memberKeyPath] }
+        lock.whileLocked { innerValue[keyPath: memberKeyPath] }
     }
 
     public subscript<T>(dynamicMember memberKeyPath: WritableKeyPath<Element, T>) -> T {
         get {
-            updateWhileLocked { $0[keyPath: memberKeyPath] }
+            lock.whileLocked { innerValue[keyPath: memberKeyPath] }
         }
         set {
-            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
+            lock.whileLocked { innerValue[keyPath: memberKeyPath] = newValue }
         }
     }
 
@@ -124,10 +124,10 @@ extension Locked where Element: AnyObject {
 
     public subscript<T>(dynamicMember memberKeyPath: ReferenceWritableKeyPath<Element, T>) -> T {
         get {
-            updateWhileLocked { $0[keyPath: memberKeyPath] }
+            lock.whileLocked { innerValue[keyPath: memberKeyPath] }
         }
         set {
-            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
+            lock.whileLocked { innerValue[keyPath: memberKeyPath] = newValue }
         }
     }
 }

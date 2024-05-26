@@ -15,7 +15,7 @@ import Foundation
 /// for _ in 1 ... 3 {
 ///     Task {
 ///         // do some async work here...
-///         taskSemaphore.notify
+///         taskSemaphore.notify()
 ///     }
 /// }
 ///
@@ -24,7 +24,7 @@ import Foundation
 /// taskSemaphore.waitForAll()
 /// ```
 ///
-public final class Semaphore {
+public final class LockSemaphore {
 
     var index: Int
 
@@ -32,7 +32,7 @@ public final class Semaphore {
 
     let condition: Condition
 
-    /// Initializes a `Semaphore` instance with a fixed number of threads or task
+    /// Initializes a `LockSemaphore` instance with a fixed number of threads or task
     /// - Parameter size: maximum number of tasks or threads to await
     /// - Returns: nil if the `size` argument is less than zero
     public init(size: Int) {

@@ -21,7 +21,16 @@ func getAsyncValueFromNonAsyncContext() {
 enum Program {
     static func main() async throws {
 
-        replacesSwiftGlobalConcurrencyHook()
+        for item in 1...100 {
+            WorkerPool.globalPool.async {
+                if item == 89 {
+                    fatalError("Item : \(item)")
+                }
+                print("Value: \(item)")
+            }
+        }
+
+        /* replacesSwiftGlobalConcurrencyHook()
 
         Task { @GlobalActor in
             globalActorCounter += 10
@@ -71,6 +80,6 @@ enum Program {
         print("Count for \(type(of: specialActorInstance)): \(await specialActorInstance.count)")
         print("Count for \(type(of: lockInstance)): \(await lockInstance.count)")
         print("Count for \(type(of: normalActor)): \(await normalActor.count)")
-        print("Count for globalActorConter \(await globalActorCounter)")
+        print("Count for globalActorConter \(await globalActorCounter)") */
     }
 }

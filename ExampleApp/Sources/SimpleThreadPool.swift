@@ -6,7 +6,7 @@ public final class SimpleThreadPool {
 
     let waitType: WaitType
 
-    let handles: [UnnamedThread]
+    let handles: [NamedThread]
 
     let barrier: Barrier
 
@@ -45,7 +45,7 @@ public final class SimpleThreadPool {
         barrier = Barrier(size: size + 1)
         started = OnceState()
         handles = (0..<size).map { index in
-            return UnnamedThread("SimpleThreadPool #\(index)")
+            return NamedThread("SimpleThreadPool #\(index)")
         }
     }
 

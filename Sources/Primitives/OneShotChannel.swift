@@ -24,18 +24,17 @@ import Foundation
 ///    print("Got \(value)")
 /// }
 /// ```
-@frozen
 public struct OneShotChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
+    final class Storage {
 
-        var buffer: Value
+        var buffer: Element?
 
         var readyToReceive: Bool
 
         var closed: Bool
 
-        init(_ value: Value) {
+        init(_ value: Element? = nil) {
             buffer = value
             readyToReceive = false
             closed = false
@@ -46,11 +45,11 @@ public struct OneShotChannel<Element> {
 
     let condition: Condition
 
-    let storage: _Storage<Element?>
+    let storage: Storage
 
     /// Initializes an instance of `OneShotChannel` type
     public init() {
-        storage = _Storage(nil)
+        storage = Storage(nil)
         mutex = Mutex()
         condition = Condition()
     }
@@ -96,7 +95,7 @@ public struct OneShotChannel<Element> {
     }
 }
 
-extension OneShotChannel {
+extension OneShotChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()

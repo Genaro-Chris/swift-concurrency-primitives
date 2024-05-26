@@ -1,9 +1,9 @@
 import Foundation
 @_spi(ThreadSync) import Primitives
 
-final class UnnamedThread: Thread {
+final class NamedThread: Thread {
 
-    let queue: UnboundedChannel<TaskItem>
+    let queue: UnboundedChannel<WorkItem>
 
     let latch: Latch
 
@@ -37,7 +37,7 @@ final class UnnamedThread: Thread {
         latch.decrementAlone()
     }
 
-    func submit(_ body: @escaping TaskItem) {
+    func submit(_ body: @escaping WorkItem) {
         queue <- body
     }
 

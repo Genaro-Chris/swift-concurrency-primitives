@@ -8,16 +8,24 @@ import Foundation
 /// dequeuing items unlike the remaining kinds of ``Channel`` types
 public struct UnboundedChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
+    final class Storage {
 
-        let buffer: Buffer<Value>
+        private var buffer: ContiguousArray<Element>
+
+        var count: Int {
+            buffer.count
+        }
+
+        var isEmpty: Bool {
+            buffer.isEmpty
+        }
 
         var closed: Bool
 
         var ready: Bool
 
         init() {
-            buffer = Buffer()
+            buffer = ContiguousArray()
             closed = false
             ready = false
         }
@@ -30,9 +38,24 @@ public struct UnboundedChannel<Element> {
             case (false, false): return false
             }
         }
+
+        func enqueue(_ item: Element) {
+            buffer.append(item)
+        }
+
+        func dequeue() -> Element? {
+            guard !buffer.isEmpty else {
+                return nil
+            }
+            return buffer.removeFirst()
+        }
+
+        func clear() {
+            buffer.removeAll()
+        }
     }
 
-    let storage: _Storage<Element>
+    let storage: Storage
 
     let mutex: Mutex
 
@@ -40,7 +63,7 @@ public struct UnboundedChannel<Element> {
 
     /// Initializes an instance of `UnboundedChannel` type
     public init() {
-        storage = _Storage()
+        storage = Storage()
         mutex = Mutex()
         condition = Condition()
     }
@@ -50,7 +73,7 @@ public struct UnboundedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            storage.buffer.enqueue(item)
+            storage.enqueue(item)
             if !storage.ready {
                 storage.ready = true
             }
@@ -62,11 +85,11 @@ public struct UnboundedChannel<Element> {
     public func dequeue() -> Element? {
         mutex.whileLocked {
             guard !storage.closed else {
-                return storage.buffer.dequeue()
+                return storage.dequeue()
             }
             condition.wait(mutex: mutex, condition: storage.readyToReceive)
-            let result = storage.buffer.dequeue()
-            if storage.buffer.isEmpty {
+            let result = storage.dequeue()
+            if storage.isEmpty {
                 storage.ready = false
             }
             return result
@@ -74,7 +97,7 @@ public struct UnboundedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLocked { storage.buffer.clear() }
+        mutex.whileLocked { storage.clear() }
     }
 
     public func close() {
@@ -85,7 +108,7 @@ public struct UnboundedChannel<Element> {
     }
 }
 
-extension UnboundedChannel {
+extension UnboundedChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()
@@ -102,11 +125,11 @@ extension UnboundedChannel {
     }
 
     public var length: Int {
-        return mutex.whileLocked { storage.buffer.count }
+        return mutex.whileLocked { storage.count }
     }
 
     public var isEmpty: Bool {
-        return mutex.whileLocked { storage.buffer.isEmpty }
+        return mutex.whileLocked { storage.isEmpty }
     }
 }
 

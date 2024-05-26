@@ -15,10 +15,10 @@ import Foundation
 @_spi(OtherChannels)
 public struct UnbufferedChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
+    final class Storage<Value> {
 
         init() {
-            innerValue = nil
+            value = nil
 
             send = true
 
@@ -27,16 +27,7 @@ public struct UnbufferedChannel<Element> {
             closed = false
         }
 
-        private var innerValue: Value?
-
-        var value: Value? {
-            _read {
-                yield innerValue
-            }
-            _modify {
-                yield &innerValue
-            }
-        }
+        var value: Value?
 
         var send: Bool
 
@@ -69,7 +60,7 @@ public struct UnbufferedChannel<Element> {
         }
     }
 
-    let storage: _Storage<Element>
+    let storage: Storage<Element>
 
     let mutex: Mutex
 
@@ -79,7 +70,7 @@ public struct UnbufferedChannel<Element> {
 
     /// Initializes an instance of `UnbufferedChannel` type
     public init() {
-        storage = _Storage()
+        storage = Storage()
         mutex = Mutex()
         sendCondition = Condition()
         receiveCondition = Condition()
@@ -138,7 +129,7 @@ public struct UnbufferedChannel<Element> {
     }
 }
 
-extension UnbufferedChannel {
+extension UnbufferedChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()

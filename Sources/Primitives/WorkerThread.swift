@@ -9,14 +9,14 @@ import Foundation
 ///
 /// Example
 /// ```swift
-/// let threadHandle = SingleThread(name: "Thread", waitType: .canncelAll)
+/// let threadHandle = WorkerThread(name: "Thread", waitType: .canncelAll)
 /// for index in 1 ... 10 {
 ///    threadHandle.submit {
 ///         // some heavy CPU bound work
 ///    }
 /// }
 /// ```
-public final class SingleThread: ThreadPool {
+public final class WorkerThread: ThreadPool {
 
     let handle: Thread
 
@@ -32,7 +32,7 @@ public final class SingleThread: ThreadPool {
         handle.cancel()
     }
 
-    /// Initialises an instance of `SingleThread` type
+    /// Initialises an instance of `WorkerThread` type
     /// - Parameters:
     ///   - waitType: value of `WaitType`
     public init(waitType: WaitType) {
@@ -77,13 +77,13 @@ public final class SingleThread: ThreadPool {
     }
 }
 
-extension SingleThread: CustomStringConvertible {
+extension WorkerThread: CustomStringConvertible {
     public var description: String {
         "Single Thread of \(waitType) type"
     }
 }
 
-extension SingleThread: CustomDebugStringConvertible {
+extension WorkerThread: CustomDebugStringConvertible {
 
     public var debugDescription: String {
         "Single Thread of \(waitType) type of name: \(handle.name!)"

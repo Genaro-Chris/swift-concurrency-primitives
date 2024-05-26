@@ -60,7 +60,7 @@ final class SynchronizationTests: XCTestCase {
             var scores: [Int]
         }
         @Locked var student = Student(age: 0, scores: [])
-        let semaphore = Semaphore(size: 10)
+        let semaphore = LockSemaphore(size: 10)
         (0...9).forEach { index in
             DispatchQueue.global().async {
                 defer { semaphore.notify() }
