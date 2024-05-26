@@ -21,8 +21,6 @@
 ///     print("\(value)")
 /// }
 /// ```
-@frozen
-@_eagerMove
 public struct Queue<Element> {
 
     let buffer: Buffer<Element>

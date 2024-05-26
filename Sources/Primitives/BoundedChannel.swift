@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// A buffered blocking threadsafe construct for multithreaded execution context
@@ -7,11 +6,9 @@ import Foundation
 /// A fixed size buffer channel which means at any given time it can only contain a certain number of items in it, it
 /// blocks on the sender's side if the buffer has reached that certain number
 @_spi(OtherChannels)
-@frozen
-@_eagerMove
 public struct BoundedChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
+    final class _Storage<Value> {
 
         let capacity: Int
 

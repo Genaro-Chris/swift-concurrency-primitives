@@ -1,4 +1,4 @@
-import Atomics
+
 import Foundation
 
 /// `Lock` is concurrency primitive construct that provides mutual exclusion useful for
@@ -50,7 +50,6 @@ import Foundation
 /// }
 /// ```
 ///
-@frozen
 public struct Lock {
 
     #if canImport(Darwin)

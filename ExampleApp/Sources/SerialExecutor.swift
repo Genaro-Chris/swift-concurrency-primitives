@@ -11,7 +11,7 @@ final class SerialJobExecutor: SerialExecutor {
 
     init() {}
 
-    private let threadHandle = SingleThread(name: "ActorHandle", waitType: .waitForAll)
+    private let threadHandle = SingleThread(waitType: .waitForAll)
 
     func enqueue(_ job: consuming ExecutorJob) {
         let job = UnownedJob(job)

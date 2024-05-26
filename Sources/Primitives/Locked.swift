@@ -56,7 +56,6 @@
 ///
 @propertyWrapper
 @dynamicMemberLookup
-@_fixed_layout
 public final class Locked<Element> {
 
     let lock: Lock

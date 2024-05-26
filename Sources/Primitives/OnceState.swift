@@ -1,5 +1,3 @@
-import Atomics
-
 /// A synchronization primitive which provides a way of executing code exactly once
 ///  per instance
 ///
@@ -23,30 +21,29 @@ import Atomics
 ///    }
 /// }
 /// ```
-@frozen
 public struct OnceState {
 
-    let done: ManagedAtomic<Bool>
+    let done: Locked<Bool>
 
     /// Initialises an instance of the `OnceState` type
     public init() {
-        done = ManagedAtomic(false)
+        done = Locked(false)
     }
 
     /// Runs only once per instance of `OnceState` type no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
     public func runOnce(body: () throws -> Void) rethrows {
-        guard
-            done.compareExchange(expected: false, desired: true, ordering: .relaxed)
-                .exchanged
-        else {
-            return
+        return try done.updateWhileLocked { value in
+            guard !value else {
+                return
+            }
+            value = true
+            try body()
         }
-        return try body()
     }
 
     /// Indicates if this instance have executed it's `runOnce` method
     public var hasExecuted: Bool {
-        done.load(ordering: .acquiring)
+        done.updateWhileLocked { $0 }
     }
 }

@@ -18,7 +18,9 @@ import Foundation
 /// ```
 public final class SingleThread: ThreadPool {
 
-    let handle: WorkerThread
+    let handle: Thread
+
+    let queue: UnboundedChannel<QueueOperations>
 
     let waitType: WaitType
 
@@ -32,38 +34,34 @@ public final class SingleThread: ThreadPool {
 
     /// Initialises an instance of `SingleThread` type
     /// - Parameters:
-    ///   - name: name to assign as the thread name, which defaults to `SingleThread`
     ///   - waitType: value of `WaitType`
-    public init(name: String = "SingleThread", waitType: WaitType) {
-        handle = WorkerThread(name)
+    public init(waitType: WaitType) {
         self.waitType = waitType
+        queue = UnboundedChannel()
         barrier = Barrier(size: 2)
         started = OnceState()
+        handle = start(queue: queue)
     }
 
     public func cancel() {
-        guard started.hasExecuted  else { return }
-        handle.clear()
+        guard started.hasExecuted else { return }
+        queue.clear()
     }
 
     public func submit(_ body: @escaping WorkItem) {
         started.runOnce {
             handle.start()
         }
-        handle.submit(body)
+        queue <- .ready(body)
     }
 
     public func async(_ body: @escaping SendableWorkItem) {
         submit(body)
     }
 
-    public var isBusyExecuting: Bool {
-        handle.isBusyExecuting
-    }
-
     public func pollAll() {
         guard started.hasExecuted else { return }
-        handle.submit { [barrier] in barrier.arriveAlone() }
+        queue <- .wait(barrier)
         barrier.arriveAndWait()
     }
 
@@ -76,7 +74,6 @@ public final class SingleThread: ThreadPool {
             pollAll()
             end()
         }
-        handle.join()
     }
 }
 
@@ -90,5 +87,24 @@ extension SingleThread: CustomDebugStringConvertible {
 
     public var debugDescription: String {
         "Single Thread of \(waitType) type of name: \(handle.name!)"
+    }
+}
+
+private func start(
+    queue: UnboundedChannel<QueueOperations>
+) -> Thread {
+    return Thread {
+        while !Thread.current.isCancelled {
+            while let operation = queue.dequeue() {
+                switch operation {
+
+                case let .ready(work): work()
+
+                case let .wait(barrier): barrier.arriveAndWait()
+
+                }
+            }
+
+        }
     }
 }

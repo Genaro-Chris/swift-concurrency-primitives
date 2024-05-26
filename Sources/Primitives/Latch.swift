@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// This provides a thread-coordination mechanism that blocks a
@@ -8,7 +7,6 @@ import Foundation
 /// Threads may block on the latch until the counter is decremented to zero.
 /// There is no possibility to increase or reset the counter, which makes the latch a single-use ``Barrier``.
 @_spi(ThreadSync)
-@_fixed_layout
 public final class Latch {
 
     let condition: Condition

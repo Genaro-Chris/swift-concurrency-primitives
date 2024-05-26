@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// One sized buffered channel for multithreaded execution context which serves
@@ -14,8 +13,6 @@ import Foundation
 /// This means at any given time it can only contain a single item in it and any more enqueue operations on
 /// `UnbufferedChannel` with a value will block until a dequeue operation have being done
 @_spi(OtherChannels)
-@frozen
-@_eagerMove
 public struct UnbufferedChannel<Element> {
 
     @usableFromInline final class _Storage<Value> {

@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// This serves as an indicator for task or thread has finished its execution
@@ -25,10 +24,9 @@ import Foundation
 /// taskSemaphore.waitForAll()
 /// ```
 ///
-@frozen
-public struct Semaphore {
+public final class Semaphore {
 
-    let index: ManagedAtomic<Int>
+    var index: Int
 
     let mutex: Mutex
 
@@ -41,7 +39,7 @@ public struct Semaphore {
         guard size >= 0 else {
             preconditionFailure("Cannot initialize an instance of Semaphore with count of 0")
         }
-        index = ManagedAtomic(size)
+        index = size
         mutex = Mutex()
         condition = Condition()
     }
@@ -49,16 +47,20 @@ public struct Semaphore {
     /// Indicates that this thread or task has finished its execution.
     /// This should be called only inside the thread or task
     public func notify() {
-        guard index.load(ordering: .relaxed) >= 1 else { return }
-        if index.wrappingDecrementThenLoad(ordering: .acquiringAndReleasing) == 0 {
-            condition.broadcast()
+        mutex.whileLocked {
+            guard index >= 1 else { return }
+            index -= 1
+            if index == 0 {
+                condition.broadcast()
+            }
         }
+
     }
 
     /// Blocks until there is no more thread or task running
     public func waitForAll() {
         mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: index.load(ordering: .acquiring) == 0)
+            condition.wait(mutex: mutex, condition: index == 0)
         }
     }
 }

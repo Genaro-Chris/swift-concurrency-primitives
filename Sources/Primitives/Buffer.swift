@@ -1,18 +1,13 @@
-@usableFromInline class Buffer<Element> {
+class Buffer<Element> {
 
     private var innerBuffer: ContiguousArray<Element>
 
-    var buffer: ContiguousArray<Element> {
-        _read { yield innerBuffer }
-        _modify { yield &innerBuffer }
-    }
-
     var count: Int {
-        buffer.count
+        innerBuffer.count
     }
 
     var isEmpty: Bool {
-        buffer.isEmpty
+        innerBuffer.isEmpty
     }
 
     init() {
@@ -20,17 +15,17 @@
     }
 
     func enqueue(_ item: Element) {
-        buffer.append(item)
+        innerBuffer.append(item)
     }
 
     func dequeue() -> Element? {
-        guard !buffer.isEmpty else {
+        guard !innerBuffer.isEmpty else {
             return nil
         }
-        return buffer.removeFirst()
+        return innerBuffer.removeFirst()
     }
 
     func clear() {
-        buffer.removeAll()
+        innerBuffer.removeAll()
     }
 }

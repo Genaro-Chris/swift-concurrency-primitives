@@ -1,4 +1,4 @@
-import Atomics
+
 import Foundation
 
 /// A single use blocking threadsafe construct for multithreaded execution context which serves
@@ -25,7 +25,6 @@ import Foundation
 /// }
 /// ```
 @frozen
-@_eagerMove
 public struct OneShotChannel<Element> {
 
     @usableFromInline final class _Storage<Value> {

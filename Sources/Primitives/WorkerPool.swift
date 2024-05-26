@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// A collection of fixed size of pre-started, idle worker threads that is ready to execute asynchronous
@@ -17,23 +16,15 @@ import Foundation
 /// ```
 public final class WorkerPool {
 
-    enum QueueOperations {
-
-        case ready(WorkItem)
-        case wait(Barrier)
-    }
-
     let waitType: WaitType
 
     let queue: UnboundedChannel<QueueOperations>
 
-    let handles: [NamedThread]
+    let handles: [Thread]
 
     let barrier: Barrier
 
     let started: OnceState
-
-    let isBusy: ManagedAtomic<Bool>
 
     func submitRandomly(_ body: @escaping WorkItem) {
         started.runOnce {
@@ -53,9 +44,8 @@ public final class WorkerPool {
         self.waitType = waitType
         queue = UnboundedChannel()
         barrier = Barrier(size: size + 1)
-        isBusy = ManagedAtomic(false)
         started = OnceState()
-        handles = start(queue: queue, size: size, isBusy: isBusy)
+        handles = start(queue: queue, size: size)
     }
 
     deinit {
@@ -67,7 +57,6 @@ public final class WorkerPool {
             pollAll()
             cancel()
         }
-        handles.forEach { $0.join() }
     }
 }
 
@@ -94,10 +83,6 @@ extension WorkerPool: ThreadPool {
         queue.clear()
         queue.close()
         handles.forEach { $0.cancel() }
-    }
-
-    public var isBusyExecuting: Bool {
-        isBusy.load(ordering: .relaxed)
     }
 
     public func pollAll() {
@@ -129,20 +114,25 @@ extension WorkerPool: CustomDebugStringConvertible {
     }
 }
 
-func start(
-    queue: UnboundedChannel<WorkerPool.QueueOperations>, size: Int, isBusy: ManagedAtomic<Bool>
-) -> [NamedThread] {
+private func start(
+    queue: UnboundedChannel<QueueOperations>, size: Int
+) -> [Thread] {
     (0..<size).map { index in
-        NamedThread("WorkerPool #\(index)") {
-            for operation in queue where !Thread.current.isCancelled {
-                switch operation {
+        let thread = Thread {
+            while !Thread.current.isCancelled {
+                if let operation = queue.dequeue() {
+                    switch operation {
 
-                case let .ready(work): work()
+                    case let .ready(work): work()
 
-                case let .wait(barrier): barrier.arriveAndWait()
+                    case let .wait(barrier): barrier.arriveAndWait()
 
+                    }
                 }
+
             }
         }
+        thread.name = "WorkerPool #\(index)"
+        return thread
     }
 }

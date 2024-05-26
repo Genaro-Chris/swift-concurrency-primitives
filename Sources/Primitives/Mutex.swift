@@ -17,21 +17,21 @@
 /// This object provides a safe abstraction on top of a single `pthread_mutex_t` or `SRWLOCK`. This kind
 /// of mutex is safe to use with `libpthread`-based threading models as well as windows
 /// systems.
-@_fixed_layout
-public final class Mutex {
-
-    /// Specifies the mutex type
-    /// Has no effect on Windows system
-    public enum MutexType: Int32 {
-        /// normal type
-        case normal = 0
-        /// recursive type
-        case recursive
-    }
+final class Mutex {
 
     #if os(Windows)
         let mutex: UnsafeMutablePointer<SRWLOCK>
     #else
+
+        /// Specifies the mutex type
+        /// Has no effect on Windows system
+        enum MutexType: Int32 {
+            /// normal type
+            case normal = 0
+            /// recursive type
+            case recursive
+        }
+
         let mutex: UnsafeMutablePointer<pthread_mutex_t>
 
         let mutexAttr: UnsafeMutablePointer<pthread_mutexattr_t>
@@ -40,7 +40,7 @@ public final class Mutex {
     #endif
 
     /// Initialises an instance of the `Mutex` type
-    public init(type: MutexType = .normal) {
+    init(type: MutexType = .normal) {
         mutex = UnsafeMutablePointer.allocate(capacity: 1)
         #if os(Windows)
             InitializeSRWLock(mutex)
@@ -70,7 +70,7 @@ public final class Mutex {
     }
 
     /// Acquires the lock.
-    public func lock() {
+    func lock() {
         #if os(Windows)
             AcquireSRWLockExclusive(mutex)
         #else
@@ -80,7 +80,9 @@ public final class Mutex {
     }
 
     /// Releases the lock.
-    public func unlock() {
+    /// Warning: Only call this method on the thread that previously locked
+    /// the mutex
+    func unlock() {
         #if os(Windows)
             ReleaseSRWLockExclusive(mutex)
         #else
@@ -91,7 +93,7 @@ public final class Mutex {
 
     /// Try to acquire the lock
     /// - Returns: returns true if lock was acquired successfully, otherwise false
-    public func tryLock() -> Bool {
+    func tryLock() -> Bool {
         #if os(Windows)
             TryAcquireSRWLockExclusive(mutex) != 0
         #else
@@ -109,7 +111,7 @@ public final class Mutex {
     /// # Note
     /// Avoid calling long running or blocking code while using this function
     @inlinable
-    public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
+    func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         lock()
         defer {
             unlock()

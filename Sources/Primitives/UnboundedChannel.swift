@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// An unbounded blocking threadsafe construct for multithreaded execution context which serves
@@ -7,8 +6,6 @@ import Foundation
 /// This means that it has an infinite sized buffer for storing enqueued items
 /// in it. This also doesn't provide any form of synchronization between enqueueing and
 /// dequeuing items unlike the remaining kinds of ``Channel`` types
-@frozen
-@_eagerMove
 public struct UnboundedChannel<Element> {
 
     @usableFromInline final class _Storage<Value> {

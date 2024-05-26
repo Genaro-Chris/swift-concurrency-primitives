@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// This provides a thread-coordination mechanism that blocks a group of threads of known length until all threads
@@ -8,7 +7,6 @@ import Foundation
 /// This is similar to the ``Latch`` type with a major difference of `Barrier` types are reusable:
 /// once a group of arriving threads are unblocked, the barrier can be reused
 @_spi(ThreadSync)
-@_fixed_layout
 public final class Barrier {
 
     let condition: Condition

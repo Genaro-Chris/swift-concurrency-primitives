@@ -24,7 +24,6 @@ import Foundation
 /// }
 /// waitGroup.waitForAll()
 /// ```
-@_fixed_layout
 public final class WaitGroup {
 
     var index: Int
