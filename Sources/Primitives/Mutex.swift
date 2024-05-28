@@ -24,41 +24,22 @@ public final class Mutex {
         let mutex: UnsafeMutablePointer<SRWLOCK>
     #else
 
-        /// Specifies the mutex type 
-        /// 
-        /// Has no effect on Windows system
-        public struct MutexType: Equatable {
-
-            let rawValue: Int
-
-            init(rawValue: Int) {
-                self.rawValue = rawValue
-            }
-
-            /// normal type
-            public static let normal: MutexType = MutexType(rawValue: .init(PTHREAD_MUTEX_NORMAL))
-            /// recursive type
-            public static let recursive: MutexType = MutexType(rawValue: .init(PTHREAD_MUTEX_RECURSIVE))
-        }
-
         let mutex: UnsafeMutablePointer<pthread_mutex_t>
 
         let mutexAttr: UnsafeMutablePointer<pthread_mutexattr_t>
 
-        let mutexType: MutexType
     #endif
 
     /// Initialises an instance of the `Mutex` type
-    public init(type: MutexType = .normal) {
+    public init() {
         mutex = UnsafeMutablePointer.allocate(capacity: 1)
         #if os(Windows)
             InitializeSRWLock(mutex)
         #else
-            mutexType = type
             mutex.initialize(to: pthread_mutex_t())
             mutexAttr = UnsafeMutablePointer.allocate(capacity: 1)
             mutexAttr.initialize(to: pthread_mutexattr_t())
-            pthread_mutexattr_settype(mutexAttr, .init(mutexType.rawValue))
+            pthread_mutexattr_settype(mutexAttr, .init(PTHREAD_MUTEX_NORMAL))
             pthread_mutexattr_init(mutexAttr)
             let err = pthread_mutex_init(mutex, mutexAttr)
             precondition(err == 0, "Couldn't initialize pthread_mutex due to \(err)")

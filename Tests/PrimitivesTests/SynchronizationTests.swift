@@ -37,11 +37,11 @@ final class SynchronizationTests: XCTestCase {
     }
 
     func test_locked() {
-        struct Student {
-            var age: Int
-            var scores: [Int]
+        class Student {
+            var age: Int = 0
+            var scores: [Int] = []
         }
-        let student = Locked(Student(age: 0, scores: []))
+        let student = Locked(Student())
         DispatchQueue.concurrentPerform(iterations: 10) { index in
             student.updateWhileLocked { student in
                 student.scores.append(index)
@@ -55,13 +55,13 @@ final class SynchronizationTests: XCTestCase {
     }
 
     func test_locked_wrapper() {
-        struct Student {
-            var age: Int
-            var scores: [Int]
+        class Student {
+            var age: Int = 0
+            var scores: [Int] = []
         }
-        @Locked var student = Student(age: 0, scores: [])
+        @Locked var student = Student()
         let semaphore = LockSemaphore(size: 10)
-        (0...9).forEach { index in
+        (1...10).forEach { index in
             DispatchQueue.global().async {
                 defer { semaphore.notify() }
                 $student.updateWhileLocked { student in

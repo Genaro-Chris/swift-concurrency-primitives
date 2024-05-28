@@ -99,11 +99,6 @@ public final class Condition {
             }
         #else
 
-            // ensure that the mutex is not a recursive one on non windows systems
-            if case .recursive = mutex.mutexType {
-                preconditionFailure("Condition type should never be used with recursive mutexes")
-            }
-
             var timeoutAbs = getTimeSpec(with: timeout)
 
             // wait until the time passed as argument as elapsed
@@ -123,14 +118,7 @@ public final class Condition {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
-        #if os(Windows)
-            // Windows doesn't have recursive mutex so no need to check
-        #else
-            // ensure that the mutex is not a recursive one on non windows systems
-            if case .recursive = mutex.mutexType {
-                preconditionFailure("Condition type should never be used with recursive mutexes")
-            }
-        #endif
+
         while true {
             if body() { break }
             #if os(Windows)
@@ -159,10 +147,7 @@ public final class Condition {
                 "\(#function) failed in SleepConditionVariableSRW with error \(GetLastError())"
             )
         #else
-            // ensure that the mutex is not a recursive one on non windows systems
-            if case .recursive = mutex.mutexType {
-                preconditionFailure("Condition type should never be used with recursive mutexes")
-            }
+
             let err = pthread_cond_wait(condition, mutex.mutex)
             precondition(err == 0, "\(#function) failed due to error \(err)")
         #endif
@@ -211,9 +196,6 @@ public final class Condition {
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec)
 
-            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
-            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
-
         #elseif os(Linux)
 
             // get the current time
@@ -228,9 +210,6 @@ public final class Condition {
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec
             )
-
-            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
-            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
 
         #endif
 
