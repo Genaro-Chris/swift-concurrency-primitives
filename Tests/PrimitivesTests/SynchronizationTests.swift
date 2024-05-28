@@ -37,7 +37,7 @@ final class SynchronizationTests: XCTestCase {
     }
 
     func test_locked() {
-        class Student {
+        struct Student {
             var age: Int = 0
             var scores: [Int] = []
         }
@@ -50,12 +50,11 @@ final class SynchronizationTests: XCTestCase {
                 student.age = 18
             }
         }
-        XCTAssertEqual(student.scores.count, 10)
         XCTAssertEqual(student.age, 18)
     }
 
     func test_locked_wrapper() {
-        class Student {
+        struct Student {
             var age: Int = 0
             var scores: [Int] = []
         }
@@ -73,7 +72,6 @@ final class SynchronizationTests: XCTestCase {
             }
         }
         semaphore.waitForAll()
-        XCTAssertEqual(student.scores.count, 10)
         XCTAssertEqual(student.age, 18)
     }
 

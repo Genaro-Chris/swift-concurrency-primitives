@@ -16,45 +16,9 @@ import Foundation
 /// ```
 public final class WorkerPool {
 
-    final class Buffer {
-
-        let mutex: Mutex
-
-        let condition: Condition
-
-        var buffer: ContiguousArray<WorkItem>
-
-        init() {
-            buffer = ContiguousArray()
-            mutex = Mutex()
-            condition = Condition()
-        }
-
-        func enqueue(_ item: @escaping WorkItem) {
-            mutex.whileLocked {
-                buffer.append(item)
-                condition.signal()
-            }
-        }
-
-        func dequeue() -> WorkItem? {
-            mutex.whileLocked {
-                condition.wait(mutex: mutex, condition: !buffer.isEmpty)
-                guard !buffer.isEmpty else { return nil }
-                return buffer.removeFirst()
-            }
-        }
-
-        func clear() {
-            mutex.whileLocked {
-                buffer.removeAll()
-            }
-        }
-    }
-
     let waitType: WaitType
 
-    let buffer: Buffer
+    let taskChannel: UnboundedChannel<WorkItem>
 
     let handles: [Thread]
 
@@ -69,20 +33,27 @@ public final class WorkerPool {
             preconditionFailure("Cannot initialize an instance of WorkerPool with 0 thread")
         }
         self.waitType = waitType
-        buffer = Buffer()
+        taskChannel = UnboundedChannel()
         barrier = Barrier(size: size + 1)
-        handles = start(buffer: buffer, size: size)
+        handles = start(channel: taskChannel, size: size)
         handles.forEach { $0.start() }
     }
 
     deinit {
         switch waitType {
-        case .cancelAll: cancel()
+        case .cancelAll: end()
 
         case .waitForAll:
             pollAll()
-            cancel()
+            end()
         }
+
+    }
+
+    func end() {
+        taskChannel.clear()
+        taskChannel.close()
+        handles.forEach { $0.cancel() }
     }
 }
 
@@ -97,20 +68,20 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        buffer.enqueue(body)
+        taskChannel <- body
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        buffer.enqueue(body)
+        taskChannel <- body
     }
 
     public func cancel() {
-        buffer.clear()
+        taskChannel.clear()
     }
 
     public func pollAll() {
         (0..<handles.count).forEach { _ in
-            buffer.enqueue { [barrier] in barrier.arriveAndWait() }
+            taskChannel <- { [barrier] in barrier.arriveAndWait() }
         }
         barrier.arriveAndWait()
     }
@@ -136,11 +107,11 @@ extension WorkerPool: CustomDebugStringConvertible {
     }
 }
 
-func start(buffer: WorkerPool.Buffer, size: Int) -> [Thread] {
+func start(channel: UnboundedChannel<WorkItem>, size: Int) -> [Thread] {
     (0..<size).map { _ in
         return Thread {
             while !Thread.current.isCancelled {
-                buffer.dequeue()?()
+                channel.dequeue()?()
             }
         }
     }

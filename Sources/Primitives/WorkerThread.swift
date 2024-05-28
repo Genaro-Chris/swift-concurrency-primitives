@@ -20,13 +20,15 @@ public final class WorkerThread: ThreadPool {
 
     let handle: Thread
 
-    let queue: UnboundedChannel<WorkItem>
+    let taskChannel: UnboundedChannel<WorkItem>
 
     let waitType: WaitType
 
     let barrier: Barrier
 
     func end() {
+        taskChannel.clear()
+        taskChannel.close()
         handle.cancel()
     }
 
@@ -35,26 +37,26 @@ public final class WorkerThread: ThreadPool {
     ///   - waitType: value of `WaitType`
     public init(waitType: WaitType) {
         self.waitType = waitType
-        queue = UnboundedChannel()
+        taskChannel = UnboundedChannel()
         barrier = Barrier(size: 2)
-        handle = start(queue: queue)
+        handle = start(channel: taskChannel)
         handle.start()
     }
 
     public func cancel() {
-        queue.clear()
+        taskChannel.clear()
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        queue <- body
+        taskChannel <- body
     }
 
     public func async(_ body: @escaping SendableWorkItem) {
-        queue <- body
+        taskChannel <- body
     }
 
     public func pollAll() {
-        queue <- { [barrier] in barrier.arriveAndWait() }
+        taskChannel <- { [barrier] in barrier.arriveAndWait() }
         barrier.arriveAndWait()
     }
 
@@ -82,10 +84,10 @@ extension WorkerThread: CustomDebugStringConvertible {
     }
 }
 
-func start(queue: UnboundedChannel<WorkItem>) -> Thread {
+func start(channel: UnboundedChannel<WorkItem>) -> Thread {
     return Thread {
         while !Thread.current.isCancelled {
-            queue.dequeue()?()
+            channel.dequeue()?()
         }
     }
 }

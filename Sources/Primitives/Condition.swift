@@ -196,6 +196,9 @@ public final class Condition {
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec)
 
+            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
+            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
+
         #elseif os(Linux)
 
             // get the current time
@@ -210,6 +213,9 @@ public final class Condition {
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec
             )
+
+            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
+            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
 
         #endif
 
