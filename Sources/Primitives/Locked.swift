@@ -56,7 +56,7 @@
 ///
 @propertyWrapper
 @dynamicMemberLookup
-public final class Locked<Element> {
+public final class Locked<Element>: @unchecked Sendable {
 
     let lock: Lock
 
