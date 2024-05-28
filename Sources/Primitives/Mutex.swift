@@ -17,7 +17,6 @@
 /// This object provides a safe abstraction on top of a single `pthread_mutex_t` or `SRWLOCK`. This kind
 /// of mutex is safe to use with `libpthread`-based threading models as well as windows
 /// systems.
-@_spi(Sync)
 public final class Mutex {
 
     #if os(Windows)
@@ -99,7 +98,7 @@ public final class Mutex {
     ///
     /// # Note
     /// Avoid calling long running or blocking code while using this function
-    @inlinable
+    @_alwaysEmitIntoClient @inlinable
     public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         lock()
         defer {

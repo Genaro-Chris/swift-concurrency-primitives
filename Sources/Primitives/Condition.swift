@@ -29,7 +29,6 @@
 /// # Note
 /// Any attempt to use multiple mutexes on the same condition variable may result in
 /// an undefined behaviour at runtime
-@_spi(Sync)
 public final class Condition {
 
     #if os(Windows)
