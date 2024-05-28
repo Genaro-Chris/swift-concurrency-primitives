@@ -1,6 +1,6 @@
 import XCTest
 
-@preconcurrency @testable import Primitives
+@testable import Primitives
 
 final class ThreadPoolTests: XCTestCase {
 
@@ -99,14 +99,25 @@ final class ThreadPoolTests: XCTestCase {
     }
 
     func test_thread_pool_with_sendable_closure() {
-        @Locked var total = 0
+        let total = LockedBox(0)
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1...10 {
             pool.async {
-                $total.updateWhileLocked { $0 += index }
+                total.interact { $0 += index }
             }
         }
         pool.pollAll()
-        XCTAssertEqual(total, 55)
+        XCTAssertEqual(total.value, 55)
+    }
+}
+
+class LockedBox<T> : @unchecked Sendable {
+    @Locked var value: T
+    init(_ value: T) {
+        self._value = Locked(value)
+    }
+
+    func interact<V>(_ with: (inout T) throws -> V) rethrows -> V {
+        return try $value.updateWhileLocked(with)
     }
 }
