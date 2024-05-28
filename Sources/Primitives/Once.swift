@@ -13,7 +13,7 @@
 /// ```
 public enum Once {
 
-    private static let done: Locked<Bool> = Locked(false)
+    static let done: Locked<Bool> = Locked(false)
 
     /// Runs only once per process no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted

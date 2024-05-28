@@ -20,25 +20,26 @@
 @_spi(Sync)
 public final class Mutex {
 
-    /// Specifies the mutex type
-    /// Has no effect on Windows system
-    public struct MutexType: Equatable {
-
-        let rawValue: Int
-
-        private init(rawValue: Int) {
-            self.rawValue = rawValue
-        }
-
-        /// normal type
-        public static let normal: MutexType = MutexType(rawValue: PTHREAD_MUTEX_NORMAL)
-        /// recursive type
-        public static let recursive: MutexType = MutexType(rawValue: PTHREAD_MUTEX_RECURSIVE)
-    }
-
     #if os(Windows)
         let mutex: UnsafeMutablePointer<SRWLOCK>
     #else
+
+        /// Specifies the mutex type 
+        /// 
+        /// Has no effect on Windows system
+        public struct MutexType: Equatable {
+
+            let rawValue: Int
+
+            init(rawValue: Int) {
+                self.rawValue = rawValue
+            }
+
+            /// normal type
+            public static let normal: MutexType = MutexType(rawValue: .init(PTHREAD_MUTEX_NORMAL))
+            /// recursive type
+            public static let recursive: MutexType = MutexType(rawValue: .init(PTHREAD_MUTEX_RECURSIVE))
+        }
 
         let mutex: UnsafeMutablePointer<pthread_mutex_t>
 

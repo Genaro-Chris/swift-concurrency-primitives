@@ -17,15 +17,15 @@
 /// it consumes no CPU time while waiting for an event to occur.
 /// They are typically associated with a boolean predicate
 ///  (a condition), or time duration and a mutex.
-/// 
-/// When a condition variable blockes a thread, it is usually unblocked when the predicate passed as argument changes, 
+///
+/// When a condition variable blockes a thread, it is usually unblocked when the predicate passed as argument changes,
 /// a signal or broadcast is received.
-/// 
+///
 /// Methods of this class will block the current thread of execution.
-/// 
-/// This object provides a safe abstraction on top of a single `pthread_cond_t` on pthread based system 
+///
+/// This object provides a safe abstraction on top of a single `pthread_cond_t` on pthread based system
 /// or `CONDITION_VARIABLE` on windows system.
-/// 
+///
 /// # Note
 /// Any attempt to use multiple mutexes on the same condition variable may result in
 /// an undefined behaviour at runtime
@@ -187,10 +187,15 @@ public final class Condition {
         #endif
     }
 
+}
+
+#if !os(Windows)
     func getTimeSpec(with timeout: TimeDuration) -> timespec {
-        
+
         // helps convert seconds into nanoseconds
         let nsecsPerSec: Int = 1_000_000_000
+
+        let timeoutAbs: timespec
 
         #if canImport(Darwin) || os(macOS)
 
@@ -202,7 +207,7 @@ public final class Condition {
             let allNanoSecs: Int = timeout.timeInNano + (Int(currentTime.tv_usec) * 1000)
 
             // calculate the timespec from the argument passed
-            let timeoutAbs: timespec = timespec(
+            timeoutAbs = timespec(
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec)
 
@@ -219,7 +224,7 @@ public final class Condition {
             let allNanoSecs: Int = timeout.timeInNano + Int(currentTime.tv_nsec)
 
             // calculate the timespec from the argument passed
-            let timeoutAbs: timespec = timespec(
+            timeoutAbs = timespec(
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec
             )
@@ -231,4 +236,4 @@ public final class Condition {
 
         return timeoutAbs
     }
-}
+#endif

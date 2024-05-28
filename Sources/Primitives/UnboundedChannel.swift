@@ -14,7 +14,7 @@ public struct UnboundedChannel<Element> {
 
     final class Storage {
 
-        private var buffer: ContiguousArray<Element>
+        var buffer: ContiguousArray<Element>
 
         var count: Int {
             buffer.count

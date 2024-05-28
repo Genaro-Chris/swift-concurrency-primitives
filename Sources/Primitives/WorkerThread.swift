@@ -82,9 +82,7 @@ extension WorkerThread: CustomDebugStringConvertible {
     }
 }
 
-private func start(
-    queue: UnboundedChannel<WorkItem>
-) -> Thread {
+func start(queue: UnboundedChannel<WorkItem>) -> Thread {
     return Thread {
         while !Thread.current.isCancelled {
             queue.dequeue()?()

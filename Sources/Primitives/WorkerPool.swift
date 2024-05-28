@@ -136,9 +136,7 @@ extension WorkerPool: CustomDebugStringConvertible {
     }
 }
 
-private func start(
-    buffer: WorkerPool.Buffer, size: Int
-) -> [Thread] {
+func start(buffer: WorkerPool.Buffer, size: Int) -> [Thread] {
     (0..<size).map { _ in
         return Thread {
             while !Thread.current.isCancelled {
