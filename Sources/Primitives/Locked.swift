@@ -65,10 +65,10 @@ public final class Locked<Element> {
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
         get {
-            return updateWhileLocked { $0 }
+            return lock.whileLocked { self.innerValue }
         }
         set {
-            updateWhileLocked { $0 = newValue }
+            lock.whileLocked { self.innerValue = newValue }
         }
     }
 
@@ -88,7 +88,7 @@ public final class Locked<Element> {
     ///
     public func updateWhileLocked<T>(_ using: (inout Element) throws -> T) rethrows -> T {
         return try lock.whileLocked {
-            return try using(&innerValue)
+            return try using(&self.innerValue)
         }
     }
 
@@ -106,15 +106,15 @@ public final class Locked<Element> {
 extension Locked {
 
     public subscript<T>(dynamicMember memberKeyPath: KeyPath<Element, T>) -> T {
-        updateWhileLocked { $0[keyPath: memberKeyPath] }
+        lock.whileLocked { self.innerValue[keyPath: memberKeyPath] }
     }
 
     public subscript<T>(dynamicMember memberKeyPath: WritableKeyPath<Element, T>) -> T {
         get {
-            updateWhileLocked { $0[keyPath: memberKeyPath] }
+            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] }
         }
         set {
-            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
+            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] = newValue }
         }
     }
 
@@ -124,10 +124,10 @@ extension Locked where Element: AnyObject {
 
     public subscript<T>(dynamicMember memberKeyPath: ReferenceWritableKeyPath<Element, T>) -> T {
         get {
-            updateWhileLocked { $0[keyPath: memberKeyPath] }
+            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] }
         }
         set {
-            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
+            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] = newValue }
         }
     }
 }

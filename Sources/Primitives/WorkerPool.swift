@@ -30,7 +30,7 @@ public final class WorkerPool {
     ///   - waitType: value of `WaitType`
     public init(size: Int, waitType: WaitType) {
         guard size > 0 else {
-            preconditionFailure("Cannot initialize an instance of WorkerPool with 0 thread")
+            preconditionFailure("Cannot initialize an instance of WorkerPool with 0 threads")
         }
         self.waitType = waitType
         taskChannel = UnboundedChannel()
