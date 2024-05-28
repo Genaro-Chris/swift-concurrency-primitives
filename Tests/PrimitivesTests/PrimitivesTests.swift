@@ -7,9 +7,12 @@ final class PrimitivesTests: XCTestCase {
         let queue = Queue<String>()
         (0...9).forEach { [queue] index in queue.enqueue("\(index)") }
         let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map { String($0) }
-        let result: [String] = queue.map { $0 }
-        XCTAssertEqual(result, expected)
-        XCTAssertEqual(result.count, 10)
+        var results: [String] = []
+        while let result = queue.dequeue() {
+            results.append(result)
+        }
+        XCTAssertEqual(results, expected)
+        XCTAssertEqual(results.count, 10)
     }
 
 

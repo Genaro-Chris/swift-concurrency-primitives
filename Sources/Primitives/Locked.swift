@@ -131,5 +131,3 @@ extension Locked where Element: AnyObject {
         }
     }
 }
-
-extension Locked: @unchecked Sendable {}

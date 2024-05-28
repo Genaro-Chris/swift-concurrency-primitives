@@ -18,7 +18,7 @@ public final class WorkerPool {
 
     let waitType: WaitType
 
-    let taskChannel: UnboundedChannel<WorkItem>
+    let taskChannel: UnboundedChannel<QueueOperations>
 
     let handles: [Thread]
 
@@ -68,11 +68,11 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannel <- body
+        taskChannel <- .execute(block: body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannel <- body
+        taskChannel <- .execute(block: body)
     }
 
     public func cancel() {
@@ -81,7 +81,7 @@ extension WorkerPool: ThreadPool {
 
     public func pollAll() {
         (0..<handles.count).forEach { _ in
-            taskChannel <- { [barrier] in barrier.arriveAndWait() }
+            taskChannel <- .wait(with: barrier)
         }
         barrier.arriveAndWait()
     }
@@ -107,11 +107,19 @@ extension WorkerPool: CustomDebugStringConvertible {
     }
 }
 
-func start(channel: UnboundedChannel<WorkItem>, size: Int) -> [Thread] {
+func start(channel: UnboundedChannel<QueueOperations>, size: Int) -> [Thread] {
     (0..<size).map { _ in
         return Thread {
             while !Thread.current.isCancelled {
-                if let operation = channel.dequeue() { operation() }
+                if let operation = channel.dequeue() {
+                    switch operation {
+
+                    case .execute(let block): block()
+
+                    case .wait(let barrier): barrier.arriveAndWait()
+
+                    }
+                }
             }
         }
     }

@@ -110,3 +110,5 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 }
+
+extension Locked: @retroactive @unchecked Sendable where Element: Sendable {}
