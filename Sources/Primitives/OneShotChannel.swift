@@ -90,7 +90,7 @@ public struct OneShotChannel<Element> {
     public func close() {
         mutex.whileLocked {
             storage.closed = true
-            condition.broadcast()
+            condition.signal()
         }
     }
 }

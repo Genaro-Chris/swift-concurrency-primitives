@@ -10,6 +10,10 @@ import Foundation
 /// receiving thread will complete the reception of that value, and then the enqueueing thread will
 /// finish enqueueing that value.
 ///
+/// This is a multi-producer single-consumer concurrency primitives
+/// where they are usually multiple senders and only one receiver useful for
+/// message passing
+///
 /// This means at any given time it can only contain a single item in it and any more enqueue operations on
 /// `UnbufferedChannel` with a value will block until a dequeue operation have being done
 @_spi(OtherChannels)
@@ -122,8 +126,8 @@ public struct UnbufferedChannel<Element> {
     public func close() {
         mutex.whileLocked {
             storage.closed = true
-            sendCondition.broadcast()
-            receiveCondition.broadcast()
+            sendCondition.signal()
+            receiveCondition.signal()
         }
 
     }

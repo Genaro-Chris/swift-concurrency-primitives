@@ -5,6 +5,10 @@ import Foundation
 ///
 /// A fixed size buffer channel which means at any given time it can only contain a certain number of items in it, it
 /// blocks on the sender's side if the buffer has reached that certain number
+/// 
+/// This is a multi-producer single-consumer concurrency primitives
+/// where they are usually multiple senders and only one receiver useful for
+/// message passing
 @_spi(OtherChannels)
 public struct BoundedChannel<Element> {
 
@@ -152,8 +156,8 @@ public struct BoundedChannel<Element> {
     public func close() {
         mutex.whileLocked {
             storage.closed = true
-            sendCondition.broadcast()
-            receiveCondition.broadcast()
+            sendCondition.signal()
+            receiveCondition.signal()
         }
     }
 }

@@ -9,7 +9,7 @@ func getAsyncValueFromNonAsyncContext() {
     let channel = OneShotChannel<Int>()
     Task { [channel] in
         try await Task.sleep(for: .microseconds(200))
-        channel <- (await globalActorCounter)
+        channel <- await globalActorCounter
     }
     if let value = <-channel {
         print("Got \(value)")
@@ -21,16 +21,7 @@ func getAsyncValueFromNonAsyncContext() {
 enum Program {
     static func main() async throws {
 
-        for item in 1...100 {
-            WorkerPool.globalPool.async {
-                if item == 89 {
-                    fatalError("Item : \(item)")
-                }
-                print("Value: \(item)")
-            }
-        }
-
-        /* replacesSwiftGlobalConcurrencyHook()
+        replacesSwiftGlobalConcurrencyHook()
 
         Task { @GlobalActor in
             globalActorCounter += 10
@@ -80,6 +71,6 @@ enum Program {
         print("Count for \(type(of: specialActorInstance)): \(await specialActorInstance.count)")
         print("Count for \(type(of: lockInstance)): \(await lockInstance.count)")
         print("Count for \(type(of: normalActor)): \(await normalActor.count)")
-        print("Count for globalActorConter \(await globalActorCounter)") */
+        print("Count for globalActorConter \(await globalActorCounter)")
     }
 }

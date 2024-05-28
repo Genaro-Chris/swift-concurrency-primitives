@@ -6,6 +6,10 @@ import Foundation
 /// This means that it has an infinite sized buffer for storing enqueued items
 /// in it. This also doesn't provide any form of synchronization between enqueueing and
 /// dequeuing items unlike the remaining kinds of ``Channel`` types
+/// 
+/// This is a multi-producer single-consumer concurrency primitives
+/// where they are usually multiple senders and only one receiver useful for
+/// message passing
 public struct UnboundedChannel<Element> {
 
     final class Storage {
@@ -103,7 +107,7 @@ public struct UnboundedChannel<Element> {
     public func close() {
         mutex.whileLocked {
             storage.closed = true
-            condition.broadcast()
+            condition.signal()
         }
     }
 }
