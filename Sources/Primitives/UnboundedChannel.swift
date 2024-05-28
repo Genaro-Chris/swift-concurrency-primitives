@@ -107,7 +107,7 @@ public struct UnboundedChannel<Element> {
     public func close() {
         mutex.whileLocked {
             storage.closed = true
-            condition.signal()
+            condition.broadcast()
         }
     }
 }

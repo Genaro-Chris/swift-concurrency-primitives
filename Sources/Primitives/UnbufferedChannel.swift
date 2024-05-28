@@ -126,8 +126,8 @@ public struct UnbufferedChannel<Element> {
     public func close() {
         mutex.whileLocked {
             storage.closed = true
-            sendCondition.signal()
-            receiveCondition.signal()
+            sendCondition.broadcast()
+            receiveCondition.broadcast()
         }
 
     }

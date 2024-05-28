@@ -111,7 +111,7 @@ func start(channel: UnboundedChannel<WorkItem>, size: Int) -> [Thread] {
     (0..<size).map { _ in
         return Thread {
             while !Thread.current.isCancelled {
-                channel.dequeue()?()
+                if let operation = channel.dequeue() { operation() }
             }
         }
     }

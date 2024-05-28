@@ -56,7 +56,7 @@
 ///
 @propertyWrapper
 @dynamicMemberLookup
-public final class Locked<Element>: @unchecked Sendable {
+public final class Locked<Element> {
 
     let lock: Lock
 
@@ -65,10 +65,10 @@ public final class Locked<Element>: @unchecked Sendable {
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
         get {
-            return lock.whileLocked { self.innerValue }
+            return updateWhileLocked { $0 }
         }
         set {
-            lock.whileLocked { self.innerValue = newValue }
+            updateWhileLocked { $0 = newValue }
         }
     }
 
@@ -106,15 +106,15 @@ public final class Locked<Element>: @unchecked Sendable {
 extension Locked {
 
     public subscript<T>(dynamicMember memberKeyPath: KeyPath<Element, T>) -> T {
-        lock.whileLocked { self.innerValue[keyPath: memberKeyPath] }
+        updateWhileLocked { $0[keyPath: memberKeyPath] }
     }
 
     public subscript<T>(dynamicMember memberKeyPath: WritableKeyPath<Element, T>) -> T {
         get {
-            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] }
+            updateWhileLocked { $0[keyPath: memberKeyPath] }
         }
         set {
-            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] = newValue }
+            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
         }
     }
 
@@ -124,10 +124,12 @@ extension Locked where Element: AnyObject {
 
     public subscript<T>(dynamicMember memberKeyPath: ReferenceWritableKeyPath<Element, T>) -> T {
         get {
-            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] }
+            updateWhileLocked { $0[keyPath: memberKeyPath] }
         }
         set {
-            lock.whileLocked { self.innerValue[keyPath: memberKeyPath] = newValue }
+            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
         }
     }
 }
+
+extension Locked: Sendable where Element: Sendable {}
