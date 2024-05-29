@@ -16,11 +16,11 @@ import Foundation
 /// ```
 public final class WorkerPool {
 
+    let count: Int
+
     let waitType: WaitType
 
-    let taskChannel: UnboundedChannel<QueueOperations>
-
-    let handles: [Thread]
+    let taskChannel: TaskChannel
 
     let barrier: Barrier
 
@@ -32,10 +32,11 @@ public final class WorkerPool {
         guard size > 0 else {
             preconditionFailure("Cannot initialize an instance of WorkerPool with 0 threads")
         }
+        count = size
         self.waitType = waitType
-        taskChannel = UnboundedChannel()
+        taskChannel = TaskChannel()
         barrier = Barrier(size: size + 1)
-        handles = start(channel: taskChannel, size: size)
+        let handles = start(channel: taskChannel, size: size)
         handles.forEach { $0.start() }
     }
 
@@ -52,8 +53,7 @@ public final class WorkerPool {
 
     func end() {
         taskChannel.clear()
-        taskChannel.close()
-        handles.forEach { $0.cancel() }
+        taskChannel.end()
     }
 }
 
@@ -68,11 +68,11 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannel <- .execute(block: body)
+        taskChannel.enqueue(.execute(block: body))
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannel <- .execute(block: body)
+        taskChannel.enqueue(.execute(block: body))
     }
 
     public func cancel() {
@@ -80,46 +80,18 @@ extension WorkerPool: ThreadPool {
     }
 
     public func pollAll() {
-        (0..<handles.count).forEach { _ in
-            taskChannel <- .wait(with: barrier)
+        (0..<count).forEach { _ in
+            taskChannel.enqueue(.wait(with: barrier))
         }
         barrier.arriveAndWait()
     }
 }
 
-extension WorkerPool: CustomStringConvertible {
-    public var description: String {
-        "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
-    }
-}
-
-extension WorkerPool: CustomDebugStringConvertible {
-    public var debugDescription: String {
-        let threadNames = handles.map { handle in
-            " - " + (handle.name!) + "\n"
-        }.reduce("") { acc, name in
-            return acc + name
-        }
-        return
-            "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
-            + ":\n" + threadNames
-
-    }
-}
-
-func start(channel: UnboundedChannel<QueueOperations>, size: Int) -> [Thread] {
+func start(channel: TaskChannel, size: Int) -> [Thread] {
     (0..<size).map { _ in
         return Thread {
-            while !Thread.current.isCancelled {
-                if let operation = channel.dequeue() {
-                    switch operation {
-
-                    case .execute(let block): block()
-
-                    case .wait(let barrier): barrier.arriveAndWait()
-
-                    }
-                }
+            while let operation = channel.dequeue() {
+                operation()
             }
         }
     }

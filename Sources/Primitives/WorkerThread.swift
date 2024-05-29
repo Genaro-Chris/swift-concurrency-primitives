@@ -18,9 +18,7 @@ import Foundation
 /// ```
 public final class WorkerThread: ThreadPool {
 
-    let handle: Thread
-
-    let taskChannel: UnboundedChannel<QueueOperations>
+    let taskChannel: TaskChannel
 
     let waitType: WaitType
 
@@ -28,8 +26,7 @@ public final class WorkerThread: ThreadPool {
 
     func end() {
         taskChannel.clear()
-        taskChannel.close()
-        handle.cancel()
+        taskChannel.end()
     }
 
     /// Initialises an instance of `WorkerThread` type
@@ -37,9 +34,9 @@ public final class WorkerThread: ThreadPool {
     ///   - waitType: value of `WaitType`
     public init(waitType: WaitType) {
         self.waitType = waitType
-        taskChannel = UnboundedChannel()
+        taskChannel = TaskChannel()
         barrier = Barrier(size: 2)
-        handle = start(channel: taskChannel)
+        let handle = start(channel: taskChannel)
         handle.start()
     }
 
@@ -48,15 +45,15 @@ public final class WorkerThread: ThreadPool {
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannel <- .execute(block: body)
+        taskChannel.enqueue(.execute(block: body))
     }
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannel <- .execute(block: body)
+        taskChannel.enqueue(.execute(block: body))
     }
 
     public func pollAll() {
-        taskChannel <- .wait(with: barrier)
+        taskChannel.enqueue(.wait(with: barrier))
         barrier.arriveAndWait()
     }
 
@@ -71,31 +68,10 @@ public final class WorkerThread: ThreadPool {
     }
 }
 
-extension WorkerThread: CustomStringConvertible {
-    public var description: String {
-        "Single Thread of \(waitType) type"
-    }
-}
-
-extension WorkerThread: CustomDebugStringConvertible {
-
-    public var debugDescription: String {
-        "Single Thread of \(waitType) type of name: \(handle.name!)"
-    }
-}
-
-func start(channel: UnboundedChannel<QueueOperations>) -> Thread {
+func start(channel: TaskChannel) -> Thread {
     return Thread {
-        while !Thread.current.isCancelled {
-            if let operation = channel.dequeue() {
-                switch operation {
-
-                case .execute(let block): block()
-
-                case .wait(let barrier): barrier.arriveAndWait()
-
-                }
-            }
+        while let operation = channel.dequeue() {
+            operation()
         }
     }
 }

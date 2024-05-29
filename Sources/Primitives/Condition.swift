@@ -29,7 +29,7 @@
 /// # Note
 /// Any attempt to use multiple mutexes on the same condition variable may result in
 /// an undefined behaviour at runtime
-public final class Condition {
+final class Condition {
 
     #if os(Windows)
         let condition: UnsafeMutablePointer<CONDITION_VARIABLE>
@@ -39,7 +39,7 @@ public final class Condition {
     #endif
 
     /// Initializes an instance of `Condition` type
-    public init() {
+    init() {
         condition = UnsafeMutablePointer.allocate(capacity: 1)
         #if os(Windows)
             InitializeConditionVariable(condition)
@@ -72,7 +72,7 @@ public final class Condition {
     ///   - forTimeInterval: The number of seconds to wait to acquire
     ///     the lock before giving up.
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
-    public func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
+    func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
         precondition(timeout.time >= 0, "time passed in as argument must be greater than zero")
 
         // ensure that the mutex is already locked
@@ -113,7 +113,7 @@ public final class Condition {
     /// - Parameters:
     ///   - mutex: The mutex which this function tries to acquire and lock
     ///   - condition: The condition which must later become true
-    public func wait(mutex: Mutex, condition body: @autoclosure () -> Bool) {
+    func wait(mutex: Mutex, condition body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
@@ -135,7 +135,7 @@ public final class Condition {
 
     /// Blocks the current thread
     /// - Parameter mutex: The mutex which this function tries to acquire and lock until a signal or broadcast is made
-    public func wait(mutex: Mutex) {
+    func wait(mutex: Mutex) {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
@@ -153,7 +153,7 @@ public final class Condition {
     }
 
     /// Signals only one thread to wake itself up
-    public func signal() {
+    func signal() {
         #if os(Windows)
             WakeConditionVariable(condition)
         #else
@@ -162,7 +162,7 @@ public final class Condition {
     }
 
     /// Broadcast to all blocked threads to wake up
-    public func broadcast() {
+    func broadcast() {
         #if os(Windows)
             WakeAllConditionVariable(condition)
         #else

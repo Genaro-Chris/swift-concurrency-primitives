@@ -24,6 +24,7 @@
 public struct Queue<Element> {
 
     final class Storage {
+        
         var buffer: ContiguousArray<Element>
 
         init() {

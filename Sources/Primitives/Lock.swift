@@ -53,9 +53,9 @@ import Foundation
 public struct Lock {
 
     #if canImport(Darwin)
-        @usableFromInline let lock: DarwinLock
+        let lock: DarwinLock
     #else
-        @usableFromInline let lock: Mutex
+        let lock: Mutex
     #endif
 
     /// Initialises an instance of the `Lock` type
@@ -76,7 +76,6 @@ public struct Lock {
     ///
     /// # Note
     /// Avoid calling long running or blocking code while using this function
-    @_transparent @_alwaysEmitIntoClient
     public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         return try lock.whileLocked(body)
     }

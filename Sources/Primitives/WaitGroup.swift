@@ -51,7 +51,7 @@ public final class WaitGroup {
     /// This should be called only in the thread doing the work.
     public func done() {
         mutex.whileLocked {
-            guard index > 0 else { return }
+            guard index >= 1 else { return }
             index -= 1
             if index == 0 {
                 condition.broadcast()

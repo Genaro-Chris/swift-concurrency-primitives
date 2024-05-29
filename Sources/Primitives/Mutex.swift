@@ -17,7 +17,7 @@
 /// This object provides a safe abstraction on top of a single `pthread_mutex_t` or `SRWLOCK`. This kind
 /// of mutex is safe to use with `libpthread`-based threading models as well as windows
 /// systems.
-public final class Mutex {
+final class Mutex {
 
     #if os(Windows)
         let mutex: UnsafeMutablePointer<SRWLOCK>
@@ -30,7 +30,7 @@ public final class Mutex {
     #endif
 
     /// Initialises an instance of the `Mutex` type
-    public init() {
+    init() {
         mutex = UnsafeMutablePointer.allocate(capacity: 1)
         #if os(Windows)
             InitializeSRWLock(mutex)
@@ -98,7 +98,6 @@ public final class Mutex {
     ///
     /// # Note
     /// Avoid calling long running or blocking code while using this function
-    @_alwaysEmitIntoClient @inlinable
     public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         lock()
         defer {

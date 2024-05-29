@@ -1,4 +1,4 @@
-@_spi(ThreadSync) @_spi(Sync) @testable import Primitives
+@_spi(ThreadSync) @testable import Primitives
 import XCTest
 
 final class PrimitivesTests: XCTestCase {
