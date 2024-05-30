@@ -24,9 +24,11 @@ public final class WorkerThread: ThreadPool {
 
     let barrier: Barrier
 
+    let threadHandle: Thread
+
     func end() {
-        taskChannel.clear()
         taskChannel.end()
+        threadHandle.cancel()
     }
 
     /// Initialises an instance of `WorkerThread` type
@@ -36,8 +38,8 @@ public final class WorkerThread: ThreadPool {
         self.waitType = waitType
         taskChannel = TaskChannel()
         barrier = Barrier(size: 2)
-        let handle = start(channel: taskChannel)
-        handle.start()
+        threadHandle = start(channel: taskChannel)
+        threadHandle.start()
     }
 
     public func cancel() {
@@ -70,8 +72,10 @@ public final class WorkerThread: ThreadPool {
 
 func start(channel: TaskChannel) -> Thread {
     return Thread {
-        while let operation = channel.dequeue() {
-            operation()
+        while !Thread.current.isCancelled {
+            while let operation = channel.dequeue() {
+                operation()
+            }
         }
     }
 }

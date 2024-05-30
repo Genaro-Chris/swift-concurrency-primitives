@@ -38,6 +38,9 @@ final class TaskChannel {
     }
 
     func end() {
-        condition.broadcast()
+        mutex.whileLocked {
+            buffer.removeAll()
+            condition.broadcast()
+        }
     }
 }

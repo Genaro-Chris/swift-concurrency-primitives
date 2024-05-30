@@ -24,6 +24,8 @@ public final class WorkerPool {
 
     let barrier: Barrier
 
+    let threadHandles: [Thread]
+
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
@@ -36,8 +38,8 @@ public final class WorkerPool {
         self.waitType = waitType
         taskChannel = TaskChannel()
         barrier = Barrier(size: size + 1)
-        let handles = start(channel: taskChannel, size: size)
-        handles.forEach { $0.start() }
+        threadHandles = start(channel: taskChannel, size: size)
+        threadHandles.forEach { $0.start() }
     }
 
     deinit {
@@ -52,8 +54,8 @@ public final class WorkerPool {
     }
 
     func end() {
-        taskChannel.clear()
         taskChannel.end()
+        threadHandles.forEach { $0.cancel() }
     }
 }
 
@@ -90,8 +92,10 @@ extension WorkerPool: ThreadPool {
 func start(channel: TaskChannel, size: Int) -> [Thread] {
     (0..<size).map { _ in
         return Thread {
-            while let operation = channel.dequeue() {
-                operation()
+            while !Thread.current.isCancelled {
+                if let operation = channel.dequeue() {
+                    operation()
+                }
             }
         }
     }
