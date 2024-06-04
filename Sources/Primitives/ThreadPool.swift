@@ -5,7 +5,7 @@
 /// It can also block the current thread and wait for all jobs enqueued to finish its execution
 ///
 /// It is very similar to Swift's [DispatchQueue](https://developer.apple.com/documentation/dispatch/dispatchqueue)
-public protocol ThreadPool {
+public protocol ThreadPool: AnyObject {
 
     /// Submits a sendable closure for execution in one of the pool's threads
     /// - Parameter body: a non-throwing sendable closure that takes and returns void

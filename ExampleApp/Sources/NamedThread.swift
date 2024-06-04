@@ -18,31 +18,23 @@ final class NamedThread: Thread {
 
     var isBusyExecuting: Bool { isBusy.updateWhileLocked { $0 } }
 
-    init(_ name: String) {
+    init(_ name: String, queue: UnboundedChannel<WorkItem>) {
         threadName = name
         isBusy = Locked(false)
-        queue = UnboundedChannel()
+        self.queue = queue
         latch = Latch(size: 1)
         super.init()
     }
 
     override func main() {
-        while true {
-            for item in queue where !isCancelled {
+        while !isCancelled {
+            for item in queue {
                 isBusy.updateWhileLocked { $0 = true }
                 item()
                 isBusy.updateWhileLocked { $0 = false }
             }
         }
         latch.decrementAlone()
-    }
-
-    func submit(_ body: @escaping WorkItem) {
-        queue <- body
-    }
-
-    func clear() {
-        queue.clear()
     }
 
     func join() {

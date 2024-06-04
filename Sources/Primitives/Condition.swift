@@ -73,7 +73,7 @@ final class Condition {
     ///     the lock before giving up.
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
     func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
-        precondition(timeout.time >= 0, "time passed in as argument must be greater than zero")
+        precondition(timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
 
         // ensure that the mutex is already locked
         precondition(
@@ -118,8 +118,7 @@ final class Condition {
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
 
-        while true {
-            if body() { break }
+        while !body() {
             #if os(Windows)
                 let result = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
                 precondition(
@@ -180,6 +179,7 @@ final class Condition {
         let nsecsPerSec: Int = 1_000_000_000
 
         let timeoutAbs: timespec
+        let allNanoSecs: Int
 
         #if canImport(Darwin) || os(macOS)
 
@@ -188,7 +188,7 @@ final class Condition {
             gettimeofday(&currentTime, nil)
 
             // convert into nanoseconds
-            let allNanoSecs: Int = timeout.timeInNano + (Int(currentTime.tv_usec) * 1000)
+            allNanoSecs = timeout.timeInNano + (Int(currentTime.tv_usec) * 1000)
 
             // calculate the timespec from the argument passed
             timeoutAbs = timespec(
@@ -205,7 +205,7 @@ final class Condition {
             clock_gettime(CLOCK_REALTIME, &currentTime)
 
             // convert into nanoseconds
-            let allNanoSecs: Int = timeout.timeInNano + Int(currentTime.tv_nsec)
+            allNanoSecs = timeout.timeInNano + Int(currentTime.tv_nsec)
 
             // calculate the timespec from the argument passed
             timeoutAbs = timespec(

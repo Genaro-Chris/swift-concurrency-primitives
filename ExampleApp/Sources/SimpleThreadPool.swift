@@ -6,6 +6,8 @@ public final class SimpleThreadPool {
 
     let waitType: WaitType
 
+    let taskChannel: UnboundedChannel<WorkItem>
+
     let handles: [NamedThread]
 
     let barrier: Barrier
@@ -13,9 +15,9 @@ public final class SimpleThreadPool {
     let started: OnceState
 
     private func end() {
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
+        guard started.hasExecuted else { return }
+        taskChannel.close()
+        taskChannel.clear()
         handles.forEach { $0.cancel() }
     }
 
@@ -23,7 +25,7 @@ public final class SimpleThreadPool {
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        handles.randomElement()?.submit(body)
+        taskChannel <- body
     }
 
     public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
@@ -33,7 +35,7 @@ public final class SimpleThreadPool {
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        handles[index].submit(body)
+        taskChannel <- body
         return true
     }
 
@@ -44,9 +46,11 @@ public final class SimpleThreadPool {
         self.waitType = waitType
         barrier = Barrier(size: size + 1)
         started = OnceState()
+        let taskChannel = UnboundedChannel<WorkItem>()
         handles = (0..<size).map { index in
-            return NamedThread("SimpleThreadPool #\(index)")
+            return NamedThread("SimpleThreadPool #\(index)", queue: taskChannel)
         }
+        self.taskChannel = taskChannel
     }
 
     deinit {
@@ -84,23 +88,15 @@ extension SimpleThreadPool: ThreadPool {
         guard started.hasExecuted else {
             return
         }
-        handles.forEach {
-            $0.clear()
-        }
-    }
-
-    public var isBusyExecuting: Bool {
-        handles.allSatisfy {
-            $0.isBusyExecuting
-        }
+        taskChannel.clear()
     }
 
     public func pollAll() {
         guard started.hasExecuted else {
             return
         }
-        handles.forEach { [barrier] handle in
-            handle.submit {
+        (0..<handles.count).forEach { [barrier] _ in
+            taskChannel <- {
                 barrier.arriveAlone()
             }
         }

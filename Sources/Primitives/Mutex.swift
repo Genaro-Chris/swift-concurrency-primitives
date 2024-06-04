@@ -25,22 +25,20 @@ final class Mutex {
 
         let mutex: UnsafeMutablePointer<pthread_mutex_t>
 
-        let mutexAttr: UnsafeMutablePointer<pthread_mutexattr_t>
-
     #endif
 
     /// Initialises an instance of the `Mutex` type
     init() {
         mutex = UnsafeMutablePointer.allocate(capacity: 1)
+        let err: Int32
         #if os(Windows)
             InitializeSRWLock(mutex)
         #else
             mutex.initialize(to: pthread_mutex_t())
-            mutexAttr = UnsafeMutablePointer.allocate(capacity: 1)
-            mutexAttr.initialize(to: pthread_mutexattr_t())
-            pthread_mutexattr_settype(mutexAttr, .init(PTHREAD_MUTEX_NORMAL))
-            pthread_mutexattr_init(mutexAttr)
-            let err = pthread_mutex_init(mutex, mutexAttr)
+            var mutexAttr: pthread_mutexattr_t = pthread_mutexattr_t()
+            pthread_mutexattr_settype(&mutexAttr, .init(PTHREAD_MUTEX_ERRORCHECK_NP))
+            pthread_mutexattr_init(&mutexAttr)
+            err = pthread_mutex_init(mutex, &mutexAttr)
             precondition(err == 0, "Couldn't initialize pthread_mutex due to \(err)")
         #endif
     }
@@ -49,8 +47,6 @@ final class Mutex {
         #if os(Windows)
             // SRWLOCK does not need to be freed manually
         #else
-            pthread_mutexattr_destroy(mutexAttr)
-            mutexAttr.deallocate()
             let err = pthread_mutex_destroy(mutex)
             precondition(err == 0, "Couldn't destroy pthread_mutex due to \(err)")
         #endif

@@ -39,19 +39,3 @@ extension TimeDuration {
         }
     }
 }
-
-extension TimeDuration {
-    /// Current time
-    var time: Double {
-        switch self {
-        case let .nanoseconds(time): return time
-
-        case let .microseconds(time): return time
-
-        case let .milliseconds(time): return time
-
-        case let .seconds(time): return time
-
-        }
-    }
-}

@@ -37,7 +37,7 @@ public final class LockSemaphore {
     /// - Returns: nil if the `size` argument is less than zero
     public init(size: Int) {
         guard size >= 0 else {
-            preconditionFailure("Cannot initialize an instance of Semaphore with count of 0")
+            fatalError("Cannot initialize an instance of Semaphore with count of 0")
         }
         index = size
         mutex = Mutex()

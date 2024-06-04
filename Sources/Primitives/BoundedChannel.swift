@@ -103,7 +103,7 @@ public struct BoundedChannel<Element> {
     /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
         guard size > 0 else {
-            preconditionFailure("Cannot initialize this channel with capacity of 0")
+            fatalError("Cannot initialize this channel with capacity of 0")
         }
         storage = Storage(capacity: size)
         sendCondition = Condition()

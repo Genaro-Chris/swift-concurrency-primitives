@@ -67,7 +67,7 @@ final class SynchronizationTests: XCTestCase {
                     student.scores.append(index)
                 }
                 if index == 9 {
-                    student.age = 18
+                    $student.age = 18
                 }
             }
         }

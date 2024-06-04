@@ -4,15 +4,22 @@ final class TaskChannel {
 
     let condition: Condition
 
-    var buffer: ContiguousArray<QueueOperations>
+    var buffer: ContiguousArray<WorkItem>
 
-    init() {
+    var isEmpty: Bool {
+        return mutex.whileLocked {
+            return buffer.isEmpty
+        }
+    }
+
+    init(_ count: Int = 1) {
         buffer = ContiguousArray()
+        buffer.reserveCapacity(count)
         mutex = Mutex()
         condition = Condition()
     }
 
-    func enqueue(_ item: QueueOperations) {
+    func enqueue(_ item: @escaping WorkItem) {
         mutex.whileLocked {
             buffer.append(item)
             condition.signal()
@@ -23,11 +30,7 @@ final class TaskChannel {
         mutex.whileLocked {
             condition.wait(mutex: mutex, condition: !buffer.isEmpty)
             guard !buffer.isEmpty else { return nil }
-            switch buffer.removeFirst() {
-            case .execute(let block): return block
-
-            case .wait(let barrier): return { barrier.arriveAndWait() }
-            }
+            return buffer.removeFirst()
         }
     }
 
