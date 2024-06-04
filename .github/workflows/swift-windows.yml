@@ -2,9 +2,9 @@ name: Windows
 
 on:
   push:
-    branches: [Development]
+    branches: ["*"]
   pull_request:
-    branches: [Development]
+    branches: ["*"]
 
 jobs:
   windows_test:

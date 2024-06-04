@@ -54,7 +54,7 @@ final class Mutex {
     }
 
     /// Acquires the lock.
-    public func lock() {
+    func lock() {
         #if os(Windows)
             AcquireSRWLockExclusive(mutex)
         #else
@@ -66,7 +66,7 @@ final class Mutex {
     /// Releases the lock.
     /// Warning: Only call this method on the thread that previously locked
     /// the mutex
-    public func unlock() {
+    func unlock() {
         #if os(Windows)
             ReleaseSRWLockExclusive(mutex)
         #else
@@ -77,7 +77,7 @@ final class Mutex {
 
     /// Try to acquire the lock
     /// - Returns: returns true if lock was acquired successfully, otherwise false
-    public func tryLock() -> Bool {
+    func tryLock() -> Bool {
         #if os(Windows)
             TryAcquireSRWLockExclusive(mutex) != 0
         #else
@@ -94,7 +94,7 @@ final class Mutex {
     ///
     /// # Note
     /// Avoid calling long running or blocking code while using this function
-    public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
+    func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         lock()
         defer {
             unlock()

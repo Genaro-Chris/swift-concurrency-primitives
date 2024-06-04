@@ -3,7 +3,7 @@ import Foundation
 #if canImport(Darwin)
     import Darwin
 
-    public final class DarwinLock {
+    final class DarwinLock {
 
         let unfair_lock: UnsafeMutablePointer<os_unfair_lock>
 
@@ -18,12 +18,12 @@ import Foundation
         }
 
         /// Acquire the lock.
-        public func lock() {
+        func lock() {
             os_unfair_lock_lock(unfair_lock)
         }
 
         /// Release the lock.
-        public func unlock() {
+        func unlock() {
             os_unfair_lock_unlock(unfair_lock)
         }
 
@@ -36,8 +36,7 @@ import Foundation
         ///
         /// # Note
         /// Avoid calling long running or blocking code while using this function
-        @inlinable
-        public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
+        func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
             lock()
             defer {
                 unlock()

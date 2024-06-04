@@ -28,17 +28,6 @@ public final class SimpleThreadPool {
         taskChannel <- body
     }
 
-    public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
-        guard (0..<handles.count).contains(index) else {
-            return false
-        }
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
-        taskChannel <- body
-        return true
-    }
-
     public init(size: Int, waitType: WaitType) {
         guard size > 0 else {
             preconditionFailure("Cannot initialize an instance of SimpleThreadPool with 0 thread")

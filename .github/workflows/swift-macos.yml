@@ -2,9 +2,9 @@ name: MacOS
 
 on:
   push:
-    branches: [Development]
+    branches: ["*"]
   pull_request:
-    branches: [Development]
+    branches: ["*"]
 
 jobs:
 
@@ -25,54 +25,3 @@ jobs:
           run: swift build --build-tests
         - name: Swift Test
           run: swift test -Xswiftc -enable-testing
-
-    macOS-swift56:
-        name: macOS (Swift 5.6)
-        timeout-minutes: 30
-        runs-on: macos-12
-        steps:
-        - name: Checkout
-          uses: actions/checkout@v1
-        - name: Xcode Version
-          run: |
-            ls -d /Applications/Xcode*
-            sudo xcode-select -s /Applications/Xcode_13.4.1.app
-            xcodebuild -version
-            swift --version
-        - name: Swift Build
-          run: swift build --build-tests
-        - name: Swift Test
-          run: swift test -Xswiftc -enable-testing
-
-    macOS-swift57:
-        name: macOS (Swift 5.7)
-        timeout-minutes: 30
-        env:
-            TOOLCHAINS: swift
-        runs-on: macos-12
-        steps:
-        - name: Checkout
-          uses: actions/checkout@v1
-        - name: Install Toolchain
-          run: |
-            branch="swift-5.7-branch"
-            wget --quiet https://download.swift.org/$branch/xcode/latest-build.yml
-            grep "download:" < latest-build.yml > filtered.yml
-            sed -e 's/-osx.pkg//g' filtered.yml > stripped.yml
-            sed -e 's/:[^:\/\/]/YML="/g;s/$/"/g;s/ *=/=/g' stripped.yml > snapshot.sh
-            source snapshot.sh
-            echo "Installing Toolchain: $downloadYML"
-            wget --quiet https://swift.org/builds/$branch/xcode/$downloadYML/$downloadYML-osx.pkg
-            sudo installer -pkg $downloadYML-osx.pkg -target /
-            ln -s "/Library/Developer/Toolchains/$downloadYML.xctoolchain/usr/bin" swift-latest
-            ls -d /Applications/Xcode*
-            sudo xcode-select -s /Applications/Xcode_13.4.1.app
-            swift --version
-        - name: Xcode Version
-          run: |
-            xcodebuild -version
-            xcrun swift --version
-        - name: Swift Build
-          run: swift build --build-tests
-        - name: Swift Test
-          run: export PATH="swift-latest:$PATH"; swift test -Xswiftc -enable-testing

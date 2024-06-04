@@ -22,7 +22,7 @@ final class TaskChannel {
     func enqueue(_ item: @escaping WorkItem) {
         mutex.whileLocked {
             buffer.append(item)
-            condition.signal()
+            if buffer.count == 1 { condition.signal() }
         }
     }
 

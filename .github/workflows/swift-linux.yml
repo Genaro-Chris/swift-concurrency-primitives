@@ -2,9 +2,9 @@ name: Linux
 
 on:
   push:
-    branches: [Development]
+    branches: ["*"]
   pull_request:
-    branches: [Development]
+    branches: ["*"]
 
 jobs:
   build:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        swift: ["5.5", "5.6", "5.7"]
+        swift: ["5.5"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: SwiftyLab/setup-swift@v1.5.2

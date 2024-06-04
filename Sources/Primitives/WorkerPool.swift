@@ -22,18 +22,6 @@ public final class WorkerPool {
 
     let barrier: Barrier
 
-    var index: Int
-
-    var currentIndex: Int {
-        let currentIndex = index
-        if index == taskChannels.count - 1 {
-            index = 0
-        } else {
-            index += 1
-        }
-        return currentIndex
-    }
-
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
@@ -43,9 +31,21 @@ public final class WorkerPool {
             preconditionFailure("Cannot initialize an instance of WorkerPool with 0 Threads")
         }
         self.waitType = waitType
-        index =  0
         barrier = Barrier(size: size + 1)
         taskChannels = start(size: size)
+    }
+
+    /// This enqueues a block of code to be executed by a thread
+    /// - Parameters:
+    ///   - index: The position of the thread to enqueue the closure
+    ///   - body: a non-throwing sendable closure that takes and returns void
+    /// - Returns: true if the code was successfully enqueued for execution otherwise false
+    public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
+        guard (0..<taskChannels.count).contains(index) else {
+            return false
+        }
+        taskChannels[index].enqueue(body)
+        return true
     }
 
     deinit {
@@ -59,7 +59,7 @@ public final class WorkerPool {
     }
 
     func end() {
-        taskChannels.end()
+        taskChannels.forEach { $0.end() }
     }
 }
 
@@ -74,15 +74,15 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannels[currentIndex].enqueue(body)
+        taskChannels.randomElement()?.enqueue(body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannels[currentIndex].enqueue(body)
+        taskChannels.randomElement()?.enqueue(body)
     }
 
     public func cancel() {
-        taskChannels.clear()
+        taskChannels.forEach { $0.clear() }
     }
 
     public func pollAll() {
@@ -102,17 +102,5 @@ func start(size: Int) -> [TaskChannel] {
             }
         }.start()
         return channel
-    }
-}
-
-
-extension Array where Element == TaskChannel {
-
-    func clear() {
-        forEach { $0.clear() }
-    }
-
-    func end() {
-        forEach { $0.end() }
     }
 }
