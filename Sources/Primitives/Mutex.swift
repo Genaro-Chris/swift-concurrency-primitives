@@ -36,7 +36,7 @@ final class Mutex {
         #else
             mutex.initialize(to: pthread_mutex_t())
             var mutexAttr: pthread_mutexattr_t = pthread_mutexattr_t()
-            pthread_mutexattr_settype(&mutexAttr, .init(PTHREAD_MUTEX_ERRORCHECK_NP))
+            pthread_mutexattr_settype(&mutexAttr, .init(PTHREAD_MUTEX_ERRORCHECK))
             pthread_mutexattr_init(&mutexAttr)
             err = pthread_mutex_init(mutex, &mutexAttr)
             precondition(err == 0, "Couldn't initialize pthread_mutex due to \(err)")

@@ -25,14 +25,13 @@ public final class WorkerPool {
     var index: Int
 
     var currentIndex: Int {
-        defer {
-            if index == taskChannels.count - 1 {
-                index = 0
-            } else {
-                index += 1
-            }
+        let currentIndex = index
+        if index == taskChannels.count - 1 {
+            index = 0
+        } else {
+            index += 1
         }
-        return index
+        return currentIndex
     }
 
     /// Initializes an instance of the `WorkerPool` type
