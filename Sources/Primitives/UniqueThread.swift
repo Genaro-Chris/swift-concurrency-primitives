@@ -1,30 +1,34 @@
 import class Foundation.Thread
 
-final class UniqueThread: Thread {
+struct UniqueThread {
 
     let taskChannel: TaskChannel
 
+    let threadHandle: Thread
+
     init(channel: TaskChannel) {
         taskChannel = channel
-        super.init()
+        threadHandle = Thread {
+            while !Thread.current.isCancelled {
+                while let task = channel.dequeue() { task() }
+            }
+        }
     }
 
     func enqueue(_ task: @escaping WorkItem) {
         taskChannel.enqueue(task)
     }
 
-    override func main() {
-        while !isCancelled {
-            while let task = taskChannel.dequeue() { task() }
-        }
-    }
-
     func end() {
-        super.cancel()
+        threadHandle.cancel()
         taskChannel.end()
     }
 
-    override func cancel() {
+    func cancel() {
         taskChannel.clear()
+    }
+
+    func start() {
+        threadHandle.start()
     }
 }
