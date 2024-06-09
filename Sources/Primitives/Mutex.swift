@@ -47,7 +47,7 @@ final class Mutex {
         #if os(Windows)
             // SRWLOCK does not need to be freed manually
         #else
-            let err = pthread_mutex_destroy(mutex)
+            let err: Int32 = pthread_mutex_destroy(mutex)
             precondition(err == 0, "Couldn't destroy pthread_mutex due to \(err)")
         #endif
         mutex.deallocate()
@@ -58,7 +58,7 @@ final class Mutex {
         #if os(Windows)
             AcquireSRWLockExclusive(mutex)
         #else
-            let err = pthread_mutex_lock(mutex)
+            let err: Int32 = pthread_mutex_lock(mutex)
             precondition(err == 0, "\(#function) failed due to \(err)")
         #endif
     }
@@ -70,7 +70,7 @@ final class Mutex {
         #if os(Windows)
             ReleaseSRWLockExclusive(mutex)
         #else
-            let err = pthread_mutex_unlock(mutex)
+            let err: Int32 = pthread_mutex_unlock(mutex)
             precondition(err == 0, "\(#function) failed due to \(err)")
         #endif
     }
@@ -92,7 +92,7 @@ final class Mutex {
     /// - Parameter body: closure to be executed while being protected by the lock
     /// - Returns: value returned from the body closure
     ///
-    /// # Note
+    /// # Warning
     /// Avoid calling long running or blocking code while using this function
     func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         lock()

@@ -1,11 +1,10 @@
-
 import Foundation
 
 /// A single use blocking threadsafe construct for multithreaded execution context which serves
 /// as a communication mechanism between two threads
 ///
 /// This is useful in scenarios where a developer needs to send just a value safely across
-/// miltithreaded context
+/// multithreaded context
 ///
 /// # Example
 ///
@@ -17,7 +16,7 @@ import Foundation
 ///
 /// let channel = OneShotChannel<Int>()
 /// DispatchQueue.global() {
-///     channel <- (await getIntAsync())
+///     channel <- getIntAsync()
 /// }
 /// // do other work
 /// if let value = <-channel {
@@ -54,6 +53,11 @@ public struct OneShotChannel<Element> {
         condition = Condition()
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func enqueue(_ item: Element) -> Bool {
         mutex.whileLocked {
             guard !storage.readyToReceive else {
@@ -70,10 +74,15 @@ public struct OneShotChannel<Element> {
 
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             condition.wait(mutex: mutex, condition: storage.readyToReceive || storage.closed)
-            let result = storage.buffer
+            let result: Element? = storage.buffer
             storage.buffer = nil
             return result
         }

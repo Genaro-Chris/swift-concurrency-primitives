@@ -2,7 +2,7 @@
 /// as a message passing communication mechanism between two or more threads
 ///
 /// This construct provides a multi-producer single-consumer concurrency primitives
-/// where they are usually multiple senders and only one receiver useful for
+/// where they are multiple senders and only one receiver useful for
 /// message passing
 ///
 /// This construct blocks a thread on either the sending or receiving parts so it is
@@ -34,7 +34,10 @@ public protocol Channel {
     /// Clears the remaining enqueued items
     func clear()
 
-    /// Closes both the sending and receiving part of the `Channel` instance
+    /// Closes the `Channel` instance
+    /// 
+    /// This unblocks both the sending and receiving operations of the `Channel` instance
+    /// thereby making the channel unusable
     func close()
 }
 

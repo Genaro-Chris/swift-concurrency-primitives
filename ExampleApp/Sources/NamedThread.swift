@@ -12,7 +12,7 @@ final class NamedThread: Thread {
     let isBusy: Locked<Bool>
 
     override var name: String? {
-        get { threadName } 
+        get { threadName }
         set {}
     }
 

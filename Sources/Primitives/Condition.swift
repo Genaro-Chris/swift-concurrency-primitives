@@ -26,7 +26,7 @@
 /// This object provides a safe abstraction on top of a single `pthread_cond_t` on pthread based system
 /// or `CONDITION_VARIABLE` on windows system.
 ///
-/// # Note
+/// # Warning
 /// Any attempt to use multiple mutexes on the same condition variable may result in
 /// an undefined behaviour at runtime
 final class Condition {
@@ -35,7 +35,6 @@ final class Condition {
         let condition: UnsafeMutablePointer<CONDITION_VARIABLE>
     #else
         let condition: UnsafeMutablePointer<pthread_cond_t>
-        let conditionAttr: UnsafeMutablePointer<pthread_condattr_t>
     #endif
 
     /// Initializes an instance of `Condition` type
@@ -45,10 +44,9 @@ final class Condition {
             InitializeConditionVariable(condition)
         #else
             condition.initialize(to: pthread_cond_t())
-            conditionAttr = UnsafeMutablePointer.allocate(capacity: 1)
-            conditionAttr.initialize(to: pthread_condattr_t())
-            pthread_condattr_init(conditionAttr)
-            let err = pthread_cond_init(condition, conditionAttr)
+            var conditionAttr: pthread_condattr_t = pthread_condattr_t()
+            pthread_condattr_init(&conditionAttr)
+            let err: Int32 = pthread_cond_init(condition, &conditionAttr)
             precondition(err == 0, "Couldn't initialize pthread_cond due to \(err)")
         #endif
 
@@ -58,9 +56,7 @@ final class Condition {
         #if os(Windows)
             // Windows condition variables do not need to be explicitly destroyed
         #else
-            pthread_condattr_destroy(conditionAttr)
-            conditionAttr.deallocate()
-            let err = pthread_cond_destroy(condition)
+            let err: Int32 = pthread_cond_destroy(condition)
             precondition(err == 0, "Couldn't destroy pthread_cond due to \(err)")
         #endif
         condition.deallocate()
@@ -72,8 +68,14 @@ final class Condition {
     ///   - forTimeInterval: The number of seconds to wait to acquire
     ///     the lock before giving up.
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
-        precondition(timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
+        precondition(
+            timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
 
         // ensure that the mutex is already locked
         precondition(
@@ -83,7 +85,7 @@ final class Condition {
 
             var dwMilliseconds: DWORD = DWORD(timeout.timeInMilli)
             while true {
-                let dwWaitStart = timeGetTime()
+                let dwWaitStart: DWORD = timeGetTime()
                 if !SleepConditionVariableSRW(condition, mutex.mutex, dwMilliseconds, 0) {
                     let dwError = GetLastError()
                     if dwError == ERROR_TIMEOUT {
@@ -98,7 +100,7 @@ final class Condition {
             }
         #else
 
-            var timeoutAbs = getTimeSpec(with: timeout)
+            var timeoutAbs: timespec = getTimeSpec(with: timeout)
 
             // wait until the time passed as argument as elapsed
             switch pthread_cond_timedwait(condition, mutex.mutex, &timeoutAbs) {
@@ -113,6 +115,11 @@ final class Condition {
     /// - Parameters:
     ///   - mutex: The mutex which this function tries to acquire and lock
     ///   - condition: The condition which must later become true
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     func wait(mutex: Mutex, condition body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
@@ -120,13 +127,13 @@ final class Condition {
 
         while !body() {
             #if os(Windows)
-                let result = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
+                let result: Bool = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
                 precondition(
                     result,
                     "\(#function) failed in SleepConditionVariableSRW with error \(GetLastError())"
                 )
             #else
-                let err = pthread_cond_wait(condition, mutex.mutex)
+                let err: Int32 = pthread_cond_wait(condition, mutex.mutex)
                 precondition(err == 0, "\(#function) failed due to \(err)")
             #endif
         }
@@ -134,24 +141,32 @@ final class Condition {
 
     /// Blocks the current thread
     /// - Parameter mutex: The mutex which this function tries to acquire and lock until a signal or broadcast is made
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     func wait(mutex: Mutex) {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
         #if os(Windows)
-            let result = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
+            let result: Bool = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
             precondition(
                 result,
                 "\(#function) failed in SleepConditionVariableSRW with error \(GetLastError())"
             )
         #else
 
-            let err = pthread_cond_wait(condition, mutex.mutex)
+            let err: Int32 = pthread_cond_wait(condition, mutex.mutex)
             precondition(err == 0, "\(#function) failed due to error \(err)")
         #endif
     }
 
     /// Signals only one thread to wake itself up
+    ///
+    /// # Warning
+    /// Highly advised to call this function while the mutex is locked
     func signal() {
         #if os(Windows)
             WakeConditionVariable(condition)
@@ -161,11 +176,14 @@ final class Condition {
     }
 
     /// Broadcast to all blocked threads to wake up
+    ///
+    /// # Warning
+    /// Highly advised to call this function while the mutex is locked
     func broadcast() {
         #if os(Windows)
             WakeAllConditionVariable(condition)
         #else
-            let err = pthread_cond_broadcast(condition)
+            let err: Int32 = pthread_cond_broadcast(condition)
             precondition(err == 0, "\(#function) failed due to \(err)")
         #endif
     }

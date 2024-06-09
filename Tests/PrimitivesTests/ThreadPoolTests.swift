@@ -98,6 +98,19 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
+    func test_cancel_pool() {
+        @Locked var total = 0
+        let pool = WorkerPool(size: 4, waitType: .cancelAll)
+        for index in 1...10 {
+            pool.submit {
+                Thread.sleep(forTimeInterval: 0.5)
+                $total.updateWhileLocked { $0 += index }
+            }
+        }
+        pool.cancel()
+        XCTAssertNotEqual(total, 55)
+    }
+
     func test_thread_pool_with_sendable_closure() {
         let total = LockedBox(0)
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
@@ -111,7 +124,7 @@ final class ThreadPoolTests: XCTestCase {
     }
 }
 
-class LockedBox<T> : @unchecked Sendable {
+class LockedBox<T>: @unchecked Sendable {
     @Locked var value: T
     init(_ value: T) {
         self._value = Locked(value)

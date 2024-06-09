@@ -6,7 +6,7 @@ import Foundation
 /// This means that it has an infinite sized buffer for storing enqueued items
 /// in it. This also doesn't provide any form of synchronization between enqueueing and
 /// dequeuing items unlike the remaining kinds of ``Channel`` types
-/// 
+///
 /// This is a multi-producer single-consumer concurrency primitives
 /// where they are usually multiple senders and only one receiver useful for
 /// message passing
@@ -14,7 +14,7 @@ public struct UnboundedChannel<Element> {
 
     final class Storage {
 
-        var buffer: ContiguousArray<Element>
+        var buffer: Deque<Element>
 
         var count: Int {
             buffer.count
@@ -29,7 +29,7 @@ public struct UnboundedChannel<Element> {
         var ready: Bool
 
         init() {
-            buffer = ContiguousArray()
+            buffer = Deque()
             closed = false
             ready = false
         }
@@ -72,6 +72,11 @@ public struct UnboundedChannel<Element> {
         condition = Condition()
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
@@ -86,13 +91,18 @@ public struct UnboundedChannel<Element> {
         }
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func dequeue() -> Element? {
         mutex.whileLocked {
             guard !storage.closed else {
                 return storage.dequeue()
             }
             condition.wait(mutex: mutex, condition: storage.readyToReceive)
-            let result = storage.dequeue()
+            let result: Element? = storage.dequeue()
             if storage.isEmpty {
                 storage.ready = false
             }

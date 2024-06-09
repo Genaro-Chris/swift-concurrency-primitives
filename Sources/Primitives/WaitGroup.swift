@@ -60,6 +60,11 @@ public final class WaitGroup {
     }
 
     /// Blocks until there is no more thread running
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func waitForAll() {
         mutex.whileLocked {
             condition.wait(mutex: mutex, condition: index == 0)

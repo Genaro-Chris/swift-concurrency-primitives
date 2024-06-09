@@ -15,27 +15,32 @@ public final class Barrier {
 
     var blockedThreadsCount: Int
 
-    let threadCount: Int
+    let threadsCount: Int
+
+    // Flag to differentiate barrier generations (avoid race conditions)
+    var generation: Int
 
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
     /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
         if size < 1 {
-            fatalError("Cannot initialize an instance of Barrier with count of 0")
+            fatalError("Cannot initialize an instance of Barrier with count less than 1")
         }
         condition = Condition()
         mutex = Mutex()
         blockedThreadsCount = 0
-        threadCount = size
+        threadsCount = size
+        generation = 0
     }
 
     /// Increments the count of an `Barrier` instance without blocking the current thread
     public func arriveAlone() {
         mutex.whileLocked {
             blockedThreadsCount += 1
-            guard blockedThreadsCount != threadCount else {
+            guard blockedThreadsCount != threadsCount else {
                 blockedThreadsCount = 0
+                generation += 1
                 condition.broadcast()
                 return
             }
@@ -43,16 +48,21 @@ public final class Barrier {
     }
 
     /// Increments the count of the `Barrier` instance and
-    /// blocks the current thread until the instance's count drops to zero
+    /// blocks the current thread until all the threads has arrived at the barrier
+    @available(*, noasync, message: "This function blocks the calling thread and therefore shouldn't be called from an async context")
     public func arriveAndWait() {
         mutex.whileLocked {
+            let currentGeneration: Int = generation
             blockedThreadsCount += 1
-            guard blockedThreadsCount != threadCount else {
+            guard blockedThreadsCount != threadsCount else {
                 blockedThreadsCount = 0
+                generation += 1
                 condition.broadcast()
                 return
             }
-            condition.wait(mutex: mutex, condition: blockedThreadsCount == 0)
+            while currentGeneration == generation && blockedThreadsCount < threadsCount {
+                condition.wait(mutex: mutex)
+            }
         }
     }
 }

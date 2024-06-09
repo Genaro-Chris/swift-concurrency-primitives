@@ -4,7 +4,9 @@ final class TaskChannel {
 
     let condition: Condition
 
-    var buffer: ContiguousArray<WorkItem>
+    var buffer: Deque<WorkItem>
+
+    var closed: Bool
 
     var isEmpty: Bool {
         return mutex.whileLocked {
@@ -13,16 +15,16 @@ final class TaskChannel {
     }
 
     init(_ count: Int = 1) {
-        buffer = ContiguousArray()
-        buffer.reserveCapacity(count)
+        buffer = Deque(minCapacity: count)
         mutex = Mutex()
         condition = Condition()
+        closed = false
     }
 
     func enqueue(_ item: @escaping WorkItem) {
         mutex.whileLocked {
             buffer.append(item)
-            if buffer.count == 1 { condition.signal() }
+            condition.signal()
         }
     }
 
@@ -42,8 +44,9 @@ final class TaskChannel {
 
     func end() {
         mutex.whileLocked {
+            closed = true
             buffer.removeAll()
-            condition.broadcast()
+            condition.signal()
         }
     }
 }

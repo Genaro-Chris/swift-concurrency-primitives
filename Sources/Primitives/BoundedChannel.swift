@@ -4,7 +4,7 @@ import Foundation
 ///  which serves as a communication mechanism between two or more threads
 ///
 /// A fixed size buffer channel which means at any given time it can only contain a certain number of items in it, it
-/// blocks on the sender's side if the buffer has reached that certain number
+/// blocks on the sender's side if the buffer is full
 /// 
 /// This is a multi-producer single-consumer concurrency primitives
 /// where they are usually multiple senders and only one receiver useful for
@@ -14,15 +14,7 @@ public struct BoundedChannel<Element> {
 
     final class Storage {
 
-        var buffer: ContiguousArray<Element>
-
-        var count: Int {
-            buffer.count
-        }
-
-        var isEmpty: Bool {
-            buffer.isEmpty
-        }
+        var buffer: Deque<Element>
 
         let capacity: Int
 
@@ -36,11 +28,19 @@ public struct BoundedChannel<Element> {
 
         init(capacity: Int) {
             self.capacity = capacity
-            buffer = ContiguousArray()
+            buffer = Deque(minCapacity: capacity)
             send = true
             receive = false
             bufferCount = 0
             closed = false
+        }
+
+        var count: Int {
+            buffer.count
+        }
+
+        var isEmpty: Bool {
+            buffer.isEmpty
         }
 
         var receiveReady: Bool {
@@ -91,6 +91,8 @@ public struct BoundedChannel<Element> {
 
     let mutex: Mutex
 
+    /// Buffer size
+    ///
     /// Maximum number of stored items at any given time
     public var capacity: Int {
         mutex.whileLocked {
@@ -111,6 +113,7 @@ public struct BoundedChannel<Element> {
         mutex = Mutex()
     }
 
+    @available(*, noasync, message: "This function blocks the calling thread and therefore shouldn't be called from an async context")
     public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
@@ -131,6 +134,7 @@ public struct BoundedChannel<Element> {
         }
     }
 
+    @available(*, noasync, message: "This function blocks the calling thread and therefore shouldn't be called from an async context")
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {

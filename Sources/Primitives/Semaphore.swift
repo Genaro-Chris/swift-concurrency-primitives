@@ -13,7 +13,7 @@ import Foundation
 /// let taskSemaphore = Semaphore(size: 3)
 ///
 /// for _ in 1 ... 3 {
-///     Task {
+///     DispatchQueue.global().async {
 ///         // do some async work here...
 ///         taskSemaphore.notify()
 ///     }
@@ -58,6 +58,11 @@ public final class LockSemaphore {
     }
 
     /// Blocks until there is no more thread or task running
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func waitForAll() {
         mutex.whileLocked {
             condition.wait(mutex: mutex, condition: index == 0)

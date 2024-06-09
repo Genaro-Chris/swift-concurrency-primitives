@@ -22,8 +22,7 @@ public final class WorkerThread: ThreadPool {
 
     let waitType: WaitType
 
-    let barrier: Barrier
-
+    let waitgroup: WaitGroup
 
     func end() {
         taskChannel.end()
@@ -35,7 +34,7 @@ public final class WorkerThread: ThreadPool {
     public init(waitType: WaitType) {
         self.waitType = waitType
         taskChannel = TaskChannel()
-        barrier = Barrier(size: 2)
+        waitgroup = WaitGroup()
         start(channel: taskChannel).start()
     }
 
@@ -51,9 +50,15 @@ public final class WorkerThread: ThreadPool {
         taskChannel.enqueue(body)
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func pollAll() {
-        taskChannel.enqueue { [barrier] in barrier.arriveAndWait() }
-        barrier.arriveAndWait()
+        waitgroup.enter()
+        taskChannel.enqueue { [waitgroup] in waitgroup.done() }
+        waitgroup.waitForAll()
     }
 
     deinit {
@@ -69,8 +74,6 @@ public final class WorkerThread: ThreadPool {
 
 func start(channel: TaskChannel) -> Thread {
     return Thread {
-        while let operation = channel.dequeue() {
-            operation()
-        }
+        while let task = channel.dequeue() { task() }
     }
 }

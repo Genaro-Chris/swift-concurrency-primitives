@@ -80,6 +80,11 @@ public struct UnbufferedChannel<Element> {
         receiveCondition = Condition()
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
@@ -97,6 +102,11 @@ public struct UnbufferedChannel<Element> {
         }
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
@@ -105,7 +115,7 @@ public struct UnbufferedChannel<Element> {
                 return result
             }
             receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
-            let result = storage.value
+            let result: Element? = storage.value
             storage.value = nil
             if !storage.closed {
                 storage.send = true

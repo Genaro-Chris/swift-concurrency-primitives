@@ -1,4 +1,3 @@
-
 import Foundation
 
 /// `Lock` is concurrency primitive construct that provides mutual exclusion useful for
@@ -74,7 +73,7 @@ public struct Lock {
     /// - Parameter body: closure to be executed while being protected by the lock
     /// - Returns: value returned from the body closure
     ///
-    /// # Note
+    /// # Warning
     /// Avoid calling long running or blocking code while using this function
     public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         return try lock.whileLocked(body)

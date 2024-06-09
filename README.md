@@ -50,7 +50,7 @@ This package also provides some constructs that synchronize concurrent accesses 
 
 This package even provide some constructs for co-ordination for threads by waiting for all threads to finish their execution
 
-- [Notifier](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/notifier)
+- [LockSemaphore](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/locksemaphore)
 - [WaitGroup](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/waitgroup)
 
 
@@ -66,8 +66,8 @@ This package provides some concurrency constructs that enable threads share memo
 
 This package provides some concurrency construct that efficiently manage a fized size of worker threads ready to execute code.
 
-- [WorkerThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/singlethread)
-- [WorkerPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/WorkerPool)
+- [WorkerThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/workerthread)
+- [WorkerPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/workerpool)
 
 ### Call Once
 

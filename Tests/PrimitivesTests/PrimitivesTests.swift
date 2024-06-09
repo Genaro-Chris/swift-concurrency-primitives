@@ -15,7 +15,6 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(results.count, 10)
     }
 
-
     func test_latch() {
         var queue = 0
         let latch = Latch(size: 10)

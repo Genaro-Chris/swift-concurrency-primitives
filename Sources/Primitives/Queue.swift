@@ -1,4 +1,4 @@
-/// A threadsafe construct for multithreaded execution context which serves
+/// A nonblocking threadsafe construct for multithreaded execution context which serves
 /// as a message passing communication mechanism between two or more threads
 ///
 /// This construct is useful in sending values across `Thread` or `DispatchQueue`
@@ -24,11 +24,11 @@
 public struct Queue<Element> {
 
     final class Storage {
-        
-        var buffer: ContiguousArray<Element>
+
+        var buffer: Deque<Element>
 
         init() {
-            buffer = ContiguousArray()
+            buffer = Deque()
         }
 
         var count: Int {

@@ -6,7 +6,7 @@ final class SynchronizationTests: XCTestCase {
 
     func test_once() {
         var total = 0
-        DispatchQueue.concurrentPerform(iterations: 6) { _ in
+        DispatchQueue.concurrentPerform(iterations: 10) { _ in
             Once.runOnce {
                 total += 1
             }
@@ -17,7 +17,7 @@ final class SynchronizationTests: XCTestCase {
     func test_oncestate() {
         var total = 0
         let once = OnceState()
-        DispatchQueue.concurrentPerform(iterations: 6) { _ in
+        DispatchQueue.concurrentPerform(iterations: 10) { _ in
             once.runOnce {
                 total += 1
             }

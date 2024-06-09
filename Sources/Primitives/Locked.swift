@@ -10,12 +10,12 @@
 ///
 ///
 /// This `Locked` type is also a property wrapper which means it can be created
-/// easily as follows and it provides a projected value which can be easily 
+/// easily as follows and it provides a projected value which can be easily
 /// used to update the value.
-/// 
+///
 /// # Examples
 /// a) Using the property wrapper
-/// 
+///
 /// ```swift
 /// struct Student {
 ///     var age: Int
@@ -23,11 +23,11 @@
 /// }
 /// @Locked var student = Student(age: 0, scores: [])
 /// DispatchQueue.concurrentPerform(iterations: 10) { index in
-///     student.updateWhileLocked { student in
+///     $student.updateWhileLocked { student in
 ///         student.scores.append(index)
 ///     }
 ///     if index == 9 {
-///         student.age = 18
+///         $student.age = 18
 ///     }
 /// }
 /// assert(student.scores.count == 10)
@@ -35,7 +35,7 @@
 /// ```
 ///
 /// b) Using the Locked type
-/// 
+///
 /// ```swift
 /// struct Student {
 ///     var age: Int
@@ -43,7 +43,7 @@
 /// }
 /// var student = Locked(Student(age: 0, scores: []))
 /// DispatchQueue.concurrentPerform(iterations: 10) { index in
-///     $student.updateWhileLocked { student in
+///     student.updateWhileLocked { student in
 ///         student.scores.append(index)
 ///     }
 ///     if index == 9 {
@@ -83,7 +83,7 @@ public final class Locked<Element> {
     /// - Parameter using: a closure that updates or changes the value stored in this type
     /// - Returns: value returned from the `using` closure
     ///
-    /// # Note
+    /// # Warning
     /// Avoid calling long running or blocking code while using this function
     ///
     public func updateWhileLocked<T>(_ using: (inout Element) throws -> T) rethrows -> T {

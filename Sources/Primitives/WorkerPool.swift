@@ -18,9 +18,9 @@ public final class WorkerPool {
 
     let waitType: WaitType
 
-    let taskChannels: [TaskChannel]
+    let threadHandles: [UniqueThread]
 
-    let barrier: Barrier
+    let waitGroup: WaitGroup
 
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
@@ -31,8 +31,8 @@ public final class WorkerPool {
             preconditionFailure("Cannot initialize an instance of WorkerPool with 0 Threads")
         }
         self.waitType = waitType
-        barrier = Barrier(size: size + 1)
-        taskChannels = start(size: size)
+        waitGroup = WaitGroup()
+        threadHandles = start(size: size)
     }
 
     /// This enqueues a block of code to be executed by a thread
@@ -41,10 +41,10 @@ public final class WorkerPool {
     ///   - body: a non-throwing sendable closure that takes and returns void
     /// - Returns: true if the code was successfully enqueued for execution otherwise false
     public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
-        guard (0..<taskChannels.count).contains(index) else {
+        guard (0..<threadHandles.count).contains(index) else {
             return false
         }
-        taskChannels[index].enqueue(body)
+        threadHandles[index].enqueue(body)
         return true
     }
 
@@ -59,7 +59,7 @@ public final class WorkerPool {
     }
 
     func end() {
-        taskChannels.forEach { $0.end() }
+        threadHandles.forEach { $0.end() }
     }
 }
 
@@ -67,40 +67,43 @@ extension WorkerPool {
 
     /// This represents a global multi-threaded pool similar to `DispatchQueue.global()`
     /// as it contains the same number of Threads as the total number of processor count
-    public static let globalPool = WorkerPool(
+    public static let globalPool: WorkerPool = WorkerPool(
         size: ProcessInfo.processInfo.activeProcessorCount, waitType: .waitForAll)
 }
 
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannels.randomElement()?.enqueue(body)
+        threadHandles.randomElement()?.enqueue(body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannels.randomElement()?.enqueue(body)
+        threadHandles.randomElement()?.enqueue(body)
     }
 
     public func cancel() {
-        taskChannels.forEach { $0.clear() }
+        threadHandles.forEach { $0.cancel() }
     }
 
+    @available(
+        *, noasync,
+        message:
+            "This function blocks the calling thread and therefore shouldn't be called from an async context"
+    )
     public func pollAll() {
-        taskChannels.forEach { channel in
-            channel.enqueue { [barrier] in barrier.arriveAndWait() }
+        threadHandles.forEach { threadHandle in
+            waitGroup.enter()
+            threadHandle.enqueue{ [waitGroup] in waitGroup.done() }
         }
-        barrier.arriveAndWait()
+        waitGroup.waitForAll()
     }
 }
 
-func start(size: Int) -> [TaskChannel] {
+func start(size: Int) -> [UniqueThread] {
     (0..<size).map { _ in
-        let channel = TaskChannel(size)
-        Thread {
-            while let operation = channel.dequeue() {
-                operation()
-            }
-        }.start()
-        return channel
+        let channel: TaskChannel = TaskChannel(size)
+        let threadHandle: UniqueThread = UniqueThread(channel: channel)
+        threadHandle.start()
+        return threadHandle
     }
 }

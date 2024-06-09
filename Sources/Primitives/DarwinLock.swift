@@ -3,6 +3,7 @@ import Foundation
 #if canImport(Darwin)
     import Darwin
 
+    /// A thin wrapper over os_unfair_lock type for darwin system
     final class DarwinLock {
 
         let unfair_lock: UnsafeMutablePointer<os_unfair_lock>
@@ -34,7 +35,7 @@ import Foundation
         /// - Parameter body: closure to be executed while being protected by the lock
         /// - Returns: value returned from the body closure
         ///
-        /// # Note
+        /// # Warning
         /// Avoid calling long running or blocking code while using this function
         func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
             lock()
