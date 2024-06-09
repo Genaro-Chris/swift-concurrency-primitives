@@ -5,7 +5,7 @@ import Foundation
 ///
 /// A fixed size buffer channel which means at any given time it can only contain a certain number of items in it, it
 /// blocks on the sender's side if the buffer is full
-/// 
+///
 /// This is a multi-producer single-consumer concurrency primitives
 /// where they are usually multiple senders and only one receiver useful for
 /// message passing
@@ -113,7 +113,13 @@ public struct BoundedChannel<Element> {
         mutex = Mutex()
     }
 
-    @available(*, noasync, message: "This function blocks the calling thread and therefore shouldn't be called from an async context")
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func enqueue(_ item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
@@ -134,7 +140,13 @@ public struct BoundedChannel<Element> {
         }
     }
 
-    @available(*, noasync, message: "This function blocks the calling thread and therefore shouldn't be called from an async context")
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {

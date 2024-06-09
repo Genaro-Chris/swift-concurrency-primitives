@@ -53,11 +53,13 @@ public struct OneShotChannel<Element> {
         condition = Condition()
     }
 
-    @available(
-        *, noasync,
-        message:
-            "This function blocks the calling thread and therefore shouldn't be called from an async context"
-    )
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func enqueue(_ item: Element) -> Bool {
         mutex.whileLocked {
             guard !storage.readyToReceive else {
@@ -74,11 +76,13 @@ public struct OneShotChannel<Element> {
 
     }
 
-    @available(
-        *, noasync,
-        message:
-            "This function blocks the calling thread and therefore shouldn't be called from an async context"
-    )
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             condition.wait(mutex: mutex, condition: storage.readyToReceive || storage.closed)

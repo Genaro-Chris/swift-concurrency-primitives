@@ -85,15 +85,17 @@ extension WorkerPool: ThreadPool {
         threadHandles.forEach { $0.cancel() }
     }
 
-    @available(
-        *, noasync,
-        message:
-            "This function blocks the calling thread and therefore shouldn't be called from an async context"
-    )
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func pollAll() {
         threadHandles.forEach { threadHandle in
             waitGroup.enter()
-            threadHandle.enqueue{ [waitGroup] in waitGroup.done() }
+            threadHandle.enqueue { [waitGroup] in waitGroup.done() }
         }
         waitGroup.waitForAll()
     }

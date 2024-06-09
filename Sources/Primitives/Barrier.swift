@@ -49,7 +49,13 @@ public final class Barrier {
 
     /// Increments the count of the `Barrier` instance and
     /// blocks the current thread until all the threads has arrived at the barrier
-    @available(*, noasync, message: "This function blocks the calling thread and therefore shouldn't be called from an async context")
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func arriveAndWait() {
         mutex.whileLocked {
             let currentGeneration: Int = generation

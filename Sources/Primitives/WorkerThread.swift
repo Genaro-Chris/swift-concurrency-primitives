@@ -50,11 +50,13 @@ public final class WorkerThread: ThreadPool {
         taskChannel.enqueue(body)
     }
 
-    @available(
-        *, noasync,
-        message:
-            "This function blocks the calling thread and therefore shouldn't be called from an async context"
-    )
+    #if compiler(>=5.7) || swift(>=5.7)
+        @available(
+            *, noasync,
+            message:
+                "This function blocks the calling thread and therefore shouldn't be called from an async context"
+        )
+    #endif
     public func pollAll() {
         waitgroup.enter()
         taskChannel.enqueue { [waitgroup] in waitgroup.done() }
