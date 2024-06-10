@@ -46,7 +46,7 @@ public final class WorkerThread: ThreadPool {
         taskChannel.enqueue(body)
     }
 
-    public func async(_ body: @escaping SendableWorkItem) {
+    public func async(_ body: @escaping @Sendable () -> Void) {
         taskChannel.enqueue(body)
     }
 
@@ -64,13 +64,10 @@ public final class WorkerThread: ThreadPool {
     }
 
     deinit {
-        switch waitType {
-        case .cancelAll: end()
-
-        case .waitForAll:
+        if case .waitForAll = waitType {
             pollAll()
-            end()
         }
+        end()
     }
 }
 

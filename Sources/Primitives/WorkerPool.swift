@@ -18,7 +18,7 @@ public final class WorkerPool {
 
     let waitType: WaitType
 
-    let threadHandles: [UniqueThread]
+    let taskChannels: [TaskChannel]
 
     let waitGroup: WaitGroup
 
@@ -32,7 +32,7 @@ public final class WorkerPool {
         }
         self.waitType = waitType
         waitGroup = WaitGroup()
-        threadHandles = start(size: size)
+        taskChannels = start(size: size)
     }
 
     /// This enqueues a block of code to be executed by a thread
@@ -41,25 +41,22 @@ public final class WorkerPool {
     ///   - body: a non-throwing sendable closure that takes and returns void
     /// - Returns: true if the code was successfully enqueued for execution otherwise false
     public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
-        guard (0..<threadHandles.count).contains(index) else {
+        guard (0..<taskChannels.count).contains(index) else {
             return false
         }
-        threadHandles[index].enqueue(body)
+        taskChannels[index].enqueue(body)
         return true
     }
 
     deinit {
-        switch waitType {
-        case .cancelAll: end()
-
-        case .waitForAll:
+        if case .waitForAll = waitType {
             pollAll()
-            end()
         }
+        end()
     }
 
     func end() {
-        threadHandles.forEach { $0.end() }
+        taskChannels.forEach { $0.end() }
     }
 }
 
@@ -74,15 +71,15 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        threadHandles.randomElement()?.enqueue(body)
+        taskChannels.randomElement()?.enqueue(body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        threadHandles.randomElement()?.enqueue(body)
+        taskChannels.randomElement()?.enqueue(body)
     }
 
     public func cancel() {
-        threadHandles.forEach { $0.cancel() }
+        taskChannels.forEach { $0.clear() }
     }
 
     #if compiler(>=5.7) || swift(>=5.7)
@@ -93,19 +90,20 @@ extension WorkerPool: ThreadPool {
         )
     #endif
     public func pollAll() {
-        threadHandles.forEach { threadHandle in
+        taskChannels.forEach { taskChannel in
             waitGroup.enter()
-            threadHandle.enqueue { [waitGroup] in waitGroup.done() }
+            taskChannel.enqueue { [waitGroup] in waitGroup.done() }
         }
         waitGroup.waitForAll()
     }
 }
 
-func start(size: Int) -> [UniqueThread] {
+func start(size: Int) -> [TaskChannel] {
     (0..<size).map { _ in
         let channel: TaskChannel = TaskChannel(size)
-        let threadHandle: UniqueThread = UniqueThread(channel: channel)
-        threadHandle.start()
-        return threadHandle
+        Thread {
+            while let ops = channel.dequeue() { ops() }
+        }.start()
+        return channel
     }
 }

@@ -30,7 +30,7 @@ final class TaskChannel {
 
     func dequeue() -> WorkItem? {
         mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: !buffer.isEmpty)
+            condition.wait(mutex: mutex, condition: !buffer.isEmpty || closed)
             guard !buffer.isEmpty else { return nil }
             return buffer.removeFirst()
         }
