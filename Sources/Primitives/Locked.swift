@@ -60,22 +60,22 @@ public final class Locked<Element> {
 
     let lock: Lock
 
-    var innerValue: Element
+    var value: Element
 
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
         get {
-            return updateWhileLocked { $0 }
+            return lock.whileLocked { self.value }
         }
         set {
-            updateWhileLocked { $0 = newValue }
+            lock.whileLocked { self.value = newValue }
         }
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
-    public init(_ value: Element) {
+    public init(initialValue: Element) {
         lock = Lock()
-        innerValue = value
+        value = initialValue
     }
 
     /// This function will block the current thread until it acquires the lock.
@@ -86,15 +86,15 @@ public final class Locked<Element> {
     /// # Warning
     /// Avoid calling long running or blocking code while using this function
     ///
-    public func updateWhileLocked<T>(_ using: (inout Element) throws -> T) rethrows -> T {
+    public func updateWhileLocked<T>(_ mutate: (inout Element) throws -> T) rethrows -> T {
         return try lock.whileLocked {
-            return try using(&self.innerValue)
+            return try mutate(&self.value)
         }
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
     convenience public init(wrappedValue value: Element) {
-        self.init(value)
+        self.init(initialValue: value)
     }
 
     /// An instance of Locked type
@@ -109,25 +109,4 @@ extension Locked {
         updateWhileLocked { $0[keyPath: memberKeyPath] }
     }
 
-    public subscript<T>(dynamicMember memberKeyPath: WritableKeyPath<Element, T>) -> T {
-        get {
-            updateWhileLocked { $0[keyPath: memberKeyPath] }
-        }
-        set {
-            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
-        }
-    }
-
-}
-
-extension Locked where Element: AnyObject {
-
-    public subscript<T>(dynamicMember memberKeyPath: ReferenceWritableKeyPath<Element, T>) -> T {
-        get {
-            updateWhileLocked { $0[keyPath: memberKeyPath] }
-        }
-        set {
-            updateWhileLocked { $0[keyPath: memberKeyPath] = newValue }
-        }
-    }
 }

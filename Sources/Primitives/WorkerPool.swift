@@ -1,3 +1,4 @@
+import AtomicsShims
 import Foundation
 
 /// A collection of fixed size of pre-started, idle worker threads that is ready to execute asynchronous
@@ -22,6 +23,12 @@ public final class WorkerPool {
 
     let waitGroup: WaitGroup
 
+    var indexer: AtomicInt
+
+    func currentIndex() -> Int {
+        return exchange(&self.indexer, (load(&self.indexer) + 1) % taskChannels.count)
+    }
+
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
@@ -33,6 +40,7 @@ public final class WorkerPool {
         self.waitType = waitType
         waitGroup = WaitGroup()
         taskChannels = start(size: size)
+        indexer = AtomicInt()
     }
 
     /// This enqueues a block of code to be executed by a thread
@@ -65,30 +73,23 @@ extension WorkerPool {
     /// This represents a global multi-threaded pool similar to `DispatchQueue.global()`
     /// as it contains the same number of Threads as the total number of processor count
     public static let globalPool: WorkerPool = WorkerPool(
-        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .waitForAll)
+        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .cancelAll)
 }
 
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannels.randomElement()?.enqueue(body)
+        taskChannels[currentIndex()].enqueue(body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannels.randomElement()?.enqueue(body)
+        taskChannels[currentIndex()].enqueue(body)
     }
 
     public func cancel() {
         taskChannels.forEach { $0.clear() }
     }
 
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
     public func pollAll() {
         taskChannels.forEach { taskChannel in
             waitGroup.enter()

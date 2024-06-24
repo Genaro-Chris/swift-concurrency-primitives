@@ -72,14 +72,7 @@ public struct UnboundedChannel<Element> {
         condition = Condition()
     }
 
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
-    public func enqueue(_ item: Element) -> Bool {
+    public func enqueue(item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
                 return false
@@ -93,13 +86,6 @@ public struct UnboundedChannel<Element> {
         }
     }
 
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
     public func dequeue() -> Element? {
         mutex.whileLocked {
             guard !storage.closed else {

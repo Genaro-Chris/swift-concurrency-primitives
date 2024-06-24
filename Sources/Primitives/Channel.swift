@@ -23,7 +23,7 @@ public protocol Channel {
     /// Enqueues an item into the `Channel` instance
     /// - Parameter item: item to be enqueued
     /// - Returns: true if sent otherwise false
-    func enqueue(_ item: Element) -> Bool
+    func enqueue(item: Element) -> Bool
 
     /// Dequeues an item from the `Channel` instance
     ///  while blocking the current thread
@@ -45,7 +45,7 @@ extension Channel {
 
     /// Enqueues an item into a `Channel` instance
     public static func <- (channel: Self, value: Element) {
-        _ = channel.enqueue(value)
+        _ = channel.enqueue(item: value)
     }
 
     /// Dequeues an item from the `Channel` instance
@@ -57,7 +57,7 @@ extension Channel {
 /// Enqueues an item into a `Channel` instance
 public func <- <Element, ChannelType>(channel: ChannelType, value: Element)
 where ChannelType: Channel, ChannelType.Element == Element {
-    _ = channel.enqueue(value)
+    _ = channel.enqueue(item: value)
 }
 
 /// Dequeues an item from the `Channel` instance

@@ -15,7 +15,7 @@ public protocol ThreadPool: AnyObject {
     /// - Parameter body: a non-throwing closure that takes and returns void
     func submit(_ body: @escaping () -> Void)
 
-    /// Cancels the `ThreadPool` execution by cancelling all enqueued un-executed jobs
+    /// Cancels the pool execution by cancelling all enqueued un-executed jobs
     func cancel()
 
     /// Block the caller's thread until all enqueued jobs in the pool are done

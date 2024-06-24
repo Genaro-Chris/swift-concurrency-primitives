@@ -1,0 +1,3 @@
+module AtomicsShims {
+  header "AtomicShims.h"
+}

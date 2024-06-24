@@ -22,7 +22,7 @@ final class ChannelTests: XCTestCase {
             channel.enumerated().forEach { (index, item) in XCTAssertEqual(item, array[index]) }
         }
         (0...9).forEach {
-            if channel.enqueue($0) {
+            if channel.enqueue(item: $0) {
                 print("Sent \($0)")
             }
         }
@@ -49,7 +49,7 @@ final class ChannelTests: XCTestCase {
                     waitGroup.done()
                     print("Done with \(index)")
                 }
-                if channel.enqueue(index) {
+                if channel.enqueue(item: index) {
                     print("Successfully sent \(index)")
                 }
             }

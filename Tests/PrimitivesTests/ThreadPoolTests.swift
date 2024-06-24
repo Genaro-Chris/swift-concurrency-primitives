@@ -112,25 +112,14 @@ final class ThreadPoolTests: XCTestCase {
     }
 
     func test_thread_pool_with_sendable_closure() {
-        let total = LockedBox(0)
+        let total = Locked(initialValue: 0)
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1...10 {
             pool.async {
-                total.interact { $0 += index }
+                total.updateWhileLocked { $0 += index }
             }
         }
         pool.pollAll()
-        XCTAssertEqual(total.value, 55)
-    }
-}
-
-class LockedBox<T>: @unchecked Sendable {
-    @Locked var value: T
-    init(_ value: T) {
-        self._value = Locked(value)
-    }
-
-    func interact<V>(_ with: (inout T) throws -> V) rethrows -> V {
-        return try $value.updateWhileLocked(with)
+        XCTAssertEqual(total.wrappedValue, 55)
     }
 }

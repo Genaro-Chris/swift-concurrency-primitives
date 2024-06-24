@@ -67,7 +67,7 @@ public struct Queue<Element> {
 
     /// Enqueue an item into the queue
     /// - Parameter item: item to be enqueued
-    public func enqueue(_ item: Element) {
+    public func enqueue(item: Element) {
         lock.whileLocked { storage.enqueue(item) }
     }
 
@@ -87,7 +87,7 @@ extension Queue {
 
     /// Enqueues an item into a `Queue` instance
     public static func <- (this: Queue, value: Element) {
-        this.enqueue(value)
+        this.enqueue(item: value)
     }
 
     /// Dequeues an item from a `Queue` instance

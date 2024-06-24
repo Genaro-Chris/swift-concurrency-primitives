@@ -18,7 +18,7 @@ public final class Barrier {
     let threadsCount: Int
 
     // Flag to differentiate barrier generations (avoid race conditions)
-    var generation: Int
+    var generation: Bool
 
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
@@ -31,7 +31,7 @@ public final class Barrier {
         mutex = Mutex()
         blockedThreadsCount = 0
         threadsCount = size
-        generation = 0
+        generation = false
     }
 
     /// Increments the count of an `Barrier` instance without blocking the current thread
@@ -40,7 +40,7 @@ public final class Barrier {
             blockedThreadsCount += 1
             guard blockedThreadsCount != threadsCount else {
                 blockedThreadsCount = 0
-                generation += 1
+                generation = !generation
                 condition.broadcast()
                 return
             }
@@ -49,20 +49,14 @@ public final class Barrier {
 
     /// Increments the count of the `Barrier` instance and
     /// blocks the current thread until all the threads has arrived at the barrier
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
+
     public func arriveAndWait() {
         mutex.whileLocked {
-            let currentGeneration: Int = generation
+            let currentGeneration: Bool = generation
             blockedThreadsCount += 1
             guard blockedThreadsCount != threadsCount else {
                 blockedThreadsCount = 0
-                generation += 1
+                generation = !generation
                 condition.broadcast()
                 return
             }

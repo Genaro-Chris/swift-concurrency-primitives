@@ -23,8 +23,8 @@
 ///
 /// Methods of this class will block the current thread of execution.
 ///
-/// This object provides a safe abstraction on top of a single `pthread_cond_t` on pthread based system
-/// or `CONDITION_VARIABLE` on windows system.
+/// This object provides a safe abstraction on top of a single `pthread_cond_t` on pthread based systems
+/// or `CONDITION_VARIABLE` on windows systems.
 ///
 /// # Warning
 /// Any attempt to use multiple mutexes on the same condition variable may result in
@@ -68,13 +68,7 @@ final class Condition {
     ///   - forTimeInterval: The number of seconds to wait to acquire
     ///     the lock before giving up.
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
+
     func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
         precondition(
             timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
@@ -117,13 +111,7 @@ final class Condition {
     /// - Parameters:
     ///   - mutex: The mutex which this function tries to acquire and lock
     ///   - condition: The condition which must later become true
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
+
     func wait(mutex: Mutex, condition body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
@@ -145,13 +133,7 @@ final class Condition {
 
     /// Blocks the current thread
     /// - Parameter mutex: The mutex which this function tries to acquire and lock until a signal or broadcast is made
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
+
     func wait(mutex: Mutex) {
         // ensure that the mutex is already locked
         precondition(

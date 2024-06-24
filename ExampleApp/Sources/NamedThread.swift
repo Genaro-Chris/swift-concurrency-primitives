@@ -20,7 +20,7 @@ final class NamedThread: Thread {
 
     init(_ name: String, queue: UnboundedChannel<WorkItem>) {
         threadName = name
-        isBusy = Locked(false)
+        isBusy = Locked(initialValue: false)
         self.queue = queue
         latch = Latch(size: 1)
         super.init()

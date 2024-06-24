@@ -58,13 +58,6 @@ public final class LockSemaphore {
     }
 
     /// Blocks until there is no more thread or task running
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
     public func waitForAll() {
         mutex.whileLocked {
             condition.wait(mutex: mutex, condition: index == 0)

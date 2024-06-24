@@ -27,12 +27,12 @@ public struct OnceState {
 
     /// Initialises an instance of the `OnceState` type
     public init() {
-        done = Locked(false)
+        done = Locked(initialValue: false)
     }
 
     /// Runs only once per instance of `OnceState` type no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
-    public func runOnce(body: () throws -> Void) rethrows {
+    public func runOnce(_ body: () throws -> Void) rethrows {
         return try done.updateWhileLocked { value in
             guard !value else {
                 return

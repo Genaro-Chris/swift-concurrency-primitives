@@ -29,13 +29,6 @@ public final class Latch {
 
     /// Decrements the count of the `Latch` instance and blocks the current thread
     /// until the instance's count drops to zero
-    #if compiler(>=5.7) || swift(>=5.7)
-        @available(
-            *, noasync,
-            message:
-                "This function blocks the calling thread and therefore shouldn't be called from an async context"
-        )
-    #endif
     public func decrementAndWait() {
         mutex.whileLocked {
             guard blockedThreadsCount > 0 else {

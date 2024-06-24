@@ -22,23 +22,21 @@ final class Mutex {
     #if os(Windows)
         let mutex: UnsafeMutablePointer<SRWLOCK>
     #else
-
         let mutex: UnsafeMutablePointer<pthread_mutex_t>
-
     #endif
 
     /// Initialises an instance of the `Mutex` type
     init() {
         mutex = UnsafeMutablePointer.allocate(capacity: 1)
-        let err: Int32
         #if os(Windows)
             InitializeSRWLock(mutex)
         #else
+            
             mutex.initialize(to: pthread_mutex_t())
             var mutexAttr: pthread_mutexattr_t = pthread_mutexattr_t()
             pthread_mutexattr_settype(&mutexAttr, .init(PTHREAD_MUTEX_ERRORCHECK))
             pthread_mutexattr_init(&mutexAttr)
-            err = pthread_mutex_init(mutex, &mutexAttr)
+            let err: Int32 = pthread_mutex_init(mutex, &mutexAttr)
             precondition(err == 0, "Couldn't initialize pthread_mutex due to \(err)")
         #endif
     }

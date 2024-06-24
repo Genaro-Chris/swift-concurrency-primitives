@@ -41,13 +41,13 @@ final class SynchronizationTests: XCTestCase {
             var age: Int = 0
             var scores: [Int] = []
         }
-        let student = Locked(Student())
+        let student = Locked(initialValue: Student())
         DispatchQueue.concurrentPerform(iterations: 10) { index in
             student.updateWhileLocked { student in
                 student.scores.append(index)
-            }
-            if index == 9 {
-                student.age = 18
+                if index == 9 {
+                    student.age = 18
+                }
             }
         }
         XCTAssertEqual(student.age, 18)
@@ -65,9 +65,9 @@ final class SynchronizationTests: XCTestCase {
                 defer { semaphore.notify() }
                 $student.updateWhileLocked { student in
                     student.scores.append(index)
-                }
-                if index == 9 {
-                    $student.age = 18
+                    if index == 9 {
+                        student.age = 18
+                    }
                 }
             }
         }

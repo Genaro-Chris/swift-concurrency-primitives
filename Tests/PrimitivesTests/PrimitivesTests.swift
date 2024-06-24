@@ -5,7 +5,7 @@ final class PrimitivesTests: XCTestCase {
 
     func test_queue() {
         let queue = Queue<String>()
-        (0...9).forEach { [queue] index in queue.enqueue("\(index)") }
+        (0...9).forEach { [queue] index in queue.enqueue(item: "\(index)") }
         let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map { String($0) }
         var results: [String] = []
         while let result = queue.dequeue() {
