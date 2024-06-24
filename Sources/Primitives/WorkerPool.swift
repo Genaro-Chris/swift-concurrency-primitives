@@ -1,4 +1,3 @@
-import AtomicsShims
 import Foundation
 
 /// A collection of fixed size of pre-started, idle worker threads that is ready to execute asynchronous
@@ -23,10 +22,14 @@ public final class WorkerPool {
 
     let waitGroup: WaitGroup
 
-    var indexer: AtomicInt
+    let indexer: Locked<Int>
 
-    func currentIndex() -> Int {
-        return exchange(&self.indexer, (load(&self.indexer) + 1) % taskChannels.count)
+    var currentIndex: Int {
+        return indexer.updateWhileLocked { index in
+            let oldIndex: Int = index
+            index = (oldIndex + 1) % taskChannels.count
+            return oldIndex
+        }
     }
 
     /// Initializes an instance of the `WorkerPool` type
@@ -40,7 +43,7 @@ public final class WorkerPool {
         self.waitType = waitType
         waitGroup = WaitGroup()
         taskChannels = start(size: size)
-        indexer = AtomicInt()
+        indexer = Locked(initialValue: 0)
     }
 
     /// This enqueues a block of code to be executed by a thread
@@ -79,11 +82,11 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannels[currentIndex()].enqueue(body)
+        taskChannels[currentIndex].enqueue(body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannels[currentIndex()].enqueue(body)
+        taskChannels[currentIndex].enqueue(body)
     }
 
     public func cancel() {
