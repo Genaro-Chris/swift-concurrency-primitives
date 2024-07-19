@@ -18,11 +18,11 @@ public enum Once {
     /// Runs only once per process no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
     public static func runOnce(_ body: () throws -> Void) rethrows {
-        return try done.updateWhileLocked { value in
-            guard !value else {
+        return try done.updateWhileLocked { executed in
+            guard !executed else {
                 return
             }
-            value = true
+            executed = true
             try body()
         }
     }

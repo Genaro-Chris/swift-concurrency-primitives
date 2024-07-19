@@ -16,34 +16,33 @@ import Foundation
 /// ```
 public final class WorkerPool {
 
-    let waitType: WaitType
-
     let taskChannels: [TaskChannel]
 
     let waitGroup: WaitGroup
 
     let indexer: Locked<Int>
 
-    var currentIndex: Int {
-        return indexer.updateWhileLocked { index in
-            let oldIndex: Int = index
-            index = (oldIndex + 1) % taskChannels.count
-            return oldIndex
-        }
-    }
+    let waitType: WaitType
 
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
     ///   - waitType: value of `WaitType`
-    public init(size: Int, waitType: WaitType) {
-        guard size > 0 else {
+    public init(size: Int, waitType: WaitType = .cancelAll) {
+        guard size >= 1 else {
             preconditionFailure("Cannot initialize an instance of WorkerPool with 0 Threads")
         }
         self.waitType = waitType
         waitGroup = WaitGroup()
         taskChannels = start(size: size)
         indexer = Locked(initialValue: 0)
+    }
+
+    deinit {
+        if case .waitForAll = waitType {
+            pollAll()
+        }
+        taskChannels.forEach { $0.end() }
     }
 
     /// This enqueues a block of code to be executed by a thread
@@ -59,15 +58,13 @@ public final class WorkerPool {
         return true
     }
 
-    deinit {
-        if case .waitForAll = waitType {
-            pollAll()
+    // Ensures that the index is accessed in a data race free manner
+    func currentIndex() -> Int {
+        return indexer.updateWhileLocked { index in
+            let oldIndex: Int = index
+            index = (oldIndex + 1) % taskChannels.count
+            return oldIndex
         }
-        end()
-    }
-
-    func end() {
-        taskChannels.forEach { $0.end() }
     }
 }
 
@@ -82,11 +79,11 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping SendableWorkItem) {
-        taskChannels[currentIndex].enqueue(body)
+        taskChannels[currentIndex()].enqueue(body)
     }
 
     public func submit(_ body: @escaping WorkItem) {
-        taskChannels[currentIndex].enqueue(body)
+        taskChannels[currentIndex()].enqueue(body)
     }
 
     public func cancel() {
@@ -104,8 +101,8 @@ extension WorkerPool: ThreadPool {
 
 func start(size: Int) -> [TaskChannel] {
     (0..<size).map { _ in
-        let channel: TaskChannel = TaskChannel(size)
-        Thread {
+        let channel: TaskChannel = TaskChannel()
+        Thread { [channel] in
             while let ops = channel.dequeue() { ops() }
         }.start()
         return channel

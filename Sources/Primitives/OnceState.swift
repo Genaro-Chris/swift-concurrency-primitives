@@ -33,11 +33,11 @@ public struct OnceState {
     /// Runs only once per instance of `OnceState` type no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
     public func runOnce(_ body: () throws -> Void) rethrows {
-        return try done.updateWhileLocked { value in
-            guard !value else {
+        return try done.updateWhileLocked { executed in
+            guard !executed else {
                 return
             }
-            value = true
+            executed = true
             try body()
         }
     }

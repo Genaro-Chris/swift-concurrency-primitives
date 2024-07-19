@@ -1,10 +1,12 @@
+import Foundation
+
 final class TaskChannel {
 
     let mutex: Mutex
 
     let condition: Condition
 
-    var buffer: Deque<WorkItem>
+    var buffer: ContiguousArray<WorkItem>
 
     var closed: Bool
 
@@ -14,15 +16,15 @@ final class TaskChannel {
         }
     }
 
-    init(_ count: Int = 1) {
-        buffer = Deque(minCapacity: count)
+    init() {
+        buffer = ContiguousArray()
         mutex = Mutex()
         condition = Condition()
         closed = false
     }
 
     func enqueue(_ item: @escaping WorkItem) {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             buffer.append(item)
             condition.signal()
         }
@@ -37,13 +39,13 @@ final class TaskChannel {
     }
 
     func clear() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             buffer.removeAll()
         }
     }
 
     func end() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             closed = true
             buffer.removeAll()
             condition.signal()

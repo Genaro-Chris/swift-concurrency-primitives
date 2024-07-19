@@ -25,26 +25,11 @@ import Foundation
 /// ```
 public struct OneShotChannel<Element> {
 
-    final class Storage {
-
-        var buffer: Element?
-
-        var readyToReceive: Bool
-
-        var closed: Bool
-
-        init(_ value: Element? = nil) {
-            buffer = value
-            readyToReceive = false
-            closed = false
-        }
-    }
+    private let storage: Storage<Element>
 
     let mutex: Mutex
 
     let condition: Condition
-
-    let storage: Storage
 
     /// Initializes an instance of `OneShotChannel` type
     public init() {
@@ -55,14 +40,14 @@ public struct OneShotChannel<Element> {
 
     public func enqueue(item: Element) -> Bool {
         mutex.whileLocked {
-            guard !storage.readyToReceive else {
+            guard !storage.ready else {
                 return false
             }
             guard !storage.closed else {
                 return false
             }
             storage.buffer = item
-            storage.readyToReceive = true
+            storage.ready = true
             condition.signal()
             return true
         }
@@ -71,7 +56,7 @@ public struct OneShotChannel<Element> {
 
     public func dequeue() -> Element? {
         return mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: storage.readyToReceive || storage.closed)
+            condition.wait(mutex: mutex, condition: storage.ready || storage.closed)
             let result: Element? = storage.buffer
             storage.buffer = nil
             return result
@@ -80,14 +65,17 @@ public struct OneShotChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.buffer = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
+            guard !storage.closed else {
+                return
+            }
             storage.closed = true
             condition.broadcast()
         }
@@ -99,7 +87,6 @@ extension OneShotChannel: IteratorProtocol, Sequence {
     public mutating func next() -> Element? {
         return dequeue()
     }
-
 }
 
 extension OneShotChannel {
@@ -128,3 +115,18 @@ extension OneShotChannel {
 }
 
 extension OneShotChannel: Channel {}
+
+private final class Storage<Element> {
+
+    var buffer: Element?
+
+    var ready: Bool
+
+    var closed: Bool
+
+    init(_ value: Element? = nil) {
+        buffer = value
+        ready = false
+        closed = false
+    }
+}

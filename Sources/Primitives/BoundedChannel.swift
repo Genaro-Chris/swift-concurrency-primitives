@@ -12,78 +12,7 @@ import Foundation
 @_spi(OtherChannels)
 public struct BoundedChannel<Element> {
 
-    final class Storage {
-
-        var buffer: Deque<Element>
-
-        let capacity: Int
-
-        var send: Bool
-
-        var receive: Bool
-
-        var bufferCount: Int
-
-        var closed: Bool
-
-        init(capacity: Int) {
-            self.capacity = capacity
-            buffer = Deque(minCapacity: capacity)
-            send = true
-            receive = false
-            bufferCount = 0
-            closed = false
-        }
-
-        var count: Int {
-            buffer.count
-        }
-
-        var isEmpty: Bool {
-            buffer.isEmpty
-        }
-
-        var receiveReady: Bool {
-            switch (receive, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-
-        var sendReady: Bool {
-            switch (send, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-
-        func enqueue(_ item: Element) {
-            buffer.append(item)
-        }
-
-        func dequeue() -> Element? {
-            guard !buffer.isEmpty else {
-                return nil
-            }
-            return buffer.removeFirst()
-        }
-
-        func clear() {
-            buffer.removeAll()
-        }
-    }
-
-    let storage: Storage
+    private let storage: Storage<Element>
 
     let sendCondition: Condition
 
@@ -104,8 +33,8 @@ public struct BoundedChannel<Element> {
     /// - Parameter size: maximum capacity of the channel
     /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
-        guard size > 0 else {
-            fatalError("Cannot initialize this channel with capacity of 0")
+        guard size >= 1 else {
+            fatalError("Cannot initialize this channel with capacity less than 1")
         }
         storage = Storage(capacity: size)
         sendCondition = Condition()
@@ -118,7 +47,7 @@ public struct BoundedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            sendCondition.wait(mutex: mutex, condition: storage.sendReady)
+            sendCondition.wait(mutex: mutex, condition: storage.send || storage.closed)
             guard !storage.closed else {
                 return false
             }
@@ -138,7 +67,7 @@ public struct BoundedChannel<Element> {
             guard !storage.closed else {
                 return storage.dequeue()
             }
-            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
+            receiveCondition.wait(mutex: mutex, condition: storage.receive || storage.closed)
             storage.bufferCount -= 1
             if storage.bufferCount == 0 {
                 storage.receive = false
@@ -150,13 +79,13 @@ public struct BoundedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.clear()
         }
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.closed = true
             sendCondition.broadcast()
             receiveCondition.broadcast()
@@ -169,7 +98,6 @@ extension BoundedChannel: IteratorProtocol, Sequence {
     public mutating func next() -> Element? {
         return dequeue()
     }
-
 }
 
 extension BoundedChannel {
@@ -185,8 +113,58 @@ extension BoundedChannel {
     }
 
     public var isEmpty: Bool {
-        storage.isEmpty
+        return mutex.whileLocked {
+            storage.isEmpty
+        }
     }
 }
 
 extension BoundedChannel: Channel {}
+
+private final class Storage<Element> {
+
+    var buffer: ContiguousArray<Element>
+
+    let capacity: Int
+
+    var bufferCount: Int
+
+    var send: Bool
+
+    var receive: Bool
+
+    var closed: Bool
+
+    init(capacity: Int) {
+        self.capacity = capacity
+        buffer = ContiguousArray()
+        buffer.reserveCapacity(capacity)
+        send = true
+        receive = false
+        bufferCount = 0
+        closed = false
+    }
+
+    var count: Int {
+        buffer.count
+    }
+
+    var isEmpty: Bool {
+        buffer.isEmpty
+    }
+
+    func enqueue(_ item: Element) {
+        buffer.append(item)
+    }
+
+    func dequeue() -> Element? {
+        guard !buffer.isEmpty else {
+            return nil
+        }
+        return buffer.removeFirst()
+    }
+
+    func clear() {
+        buffer.removeAll()
+    }
+}

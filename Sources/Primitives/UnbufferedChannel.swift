@@ -19,52 +19,7 @@ import Foundation
 @_spi(OtherChannels)
 public struct UnbufferedChannel<Element> {
 
-    final class Storage<Value> {
-
-        init() {
-            value = nil
-
-            send = true
-
-            receive = false
-
-            closed = false
-        }
-
-        var value: Value?
-
-        var send: Bool
-
-        var receive: Bool
-
-        var closed: Bool
-
-        var receiveReady: Bool {
-            switch (receive, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-
-        var sendReady: Bool {
-            switch (send, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-    }
-
-    let storage: Storage<Element>
+    private let storage: Storage<Element>
 
     let mutex: Mutex
 
@@ -85,7 +40,7 @@ public struct UnbufferedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            sendCondition.wait(mutex: mutex, condition: storage.sendReady)
+            sendCondition.wait(mutex: mutex, condition: storage.send || storage.closed)
             guard !storage.closed else {
                 return false
             }
@@ -100,11 +55,11 @@ public struct UnbufferedChannel<Element> {
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
-                let result = storage.value
+                let result: Element? = storage.value
                 storage.value = nil
                 return result
             }
-            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
+            receiveCondition.wait(mutex: mutex, condition: storage.receive || storage.closed)
             let result: Element? = storage.value
             storage.value = nil
             if !storage.closed {
@@ -117,14 +72,14 @@ public struct UnbufferedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.value = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.closed = true
             sendCondition.broadcast()
             receiveCondition.broadcast()
@@ -167,3 +122,25 @@ extension UnbufferedChannel {
 }
 
 extension UnbufferedChannel: Channel {}
+
+private final class Storage<Value> {
+
+    var value: Value?
+
+    var send: Bool
+
+    var receive: Bool
+
+    var closed: Bool
+
+    init() {
+        value = nil
+
+        send = true
+
+        receive = false
+
+        closed = false
+    }
+
+}

@@ -53,9 +53,7 @@ final class Condition {
     }
 
     deinit {
-        #if os(Windows)
-            // Windows condition variables do not need to be explicitly destroyed
-        #else
+        #if !os(Windows)
             let err: Int32 = pthread_cond_destroy(condition)
             precondition(err == 0, "Couldn't destroy pthread_cond due to \(err)")
         #endif
@@ -68,7 +66,6 @@ final class Condition {
     ///   - forTimeInterval: The number of seconds to wait to acquire
     ///     the lock before giving up.
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
-
     func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
         precondition(
             timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
@@ -110,8 +107,7 @@ final class Condition {
     /// Blocks the current thread until the condition becomes true
     /// - Parameters:
     ///   - mutex: The mutex which this function tries to acquire and lock
-    ///   - condition: The condition which must later become true
-
+    ///   - condition: The condition which is false that must later become true
     func wait(mutex: Mutex, condition body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
@@ -131,13 +127,36 @@ final class Condition {
         }
     }
 
+    /// Blocks the current thread until the condition becomes false
+    /// - Parameters:
+    ///   - mutex: The mutex which this function tries to acquire and lock
+    ///   - condition: The condition which is true that must later become false
+    func wait(mutex: Mutex, until body: @autoclosure () -> Bool) {
+        // ensure that the mutex is already locked
+        precondition(
+            !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
+
+        while body() {
+            #if os(Windows)
+                let result: Bool = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
+                precondition(
+                    result,
+                    "\(#function) failed in SleepConditionVariableSRW with error \(GetLastError())"
+                )
+            #else
+                let err: Int32 = pthread_cond_wait(condition, mutex.mutex)
+                precondition(err == 0, "\(#function) failed due to \(err)")
+            #endif
+        }
+    }
+
     /// Blocks the current thread
     /// - Parameter mutex: The mutex which this function tries to acquire and lock until a signal or broadcast is made
-
     func wait(mutex: Mutex) {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
+
         #if os(Windows)
             let result: Bool = SleepConditionVariableSRW(condition, mutex.mutex, INFINITE, 0)
             precondition(
@@ -145,7 +164,6 @@ final class Condition {
                 "\(#function) failed in SleepConditionVariableSRW with error \(GetLastError())"
             )
         #else
-
             let err: Int32 = pthread_cond_wait(condition, mutex.mutex)
             precondition(err == 0, "\(#function) failed due to error \(err)")
         #endif
@@ -204,7 +222,7 @@ final class Condition {
             assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
             assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
 
-        #elseif os(Linux)
+        #elseif os(Linux) || canImport(Musl) || canImport(Glibc)
 
             // get the current time
             var currentTime: timespec = timespec(tv_sec: 0, tv_nsec: 0)

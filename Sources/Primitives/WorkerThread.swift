@@ -16,17 +16,13 @@ import Foundation
 ///    }
 /// }
 /// ```
-public final class WorkerThread: ThreadPool {
+public final class WorkerThread {
 
     let taskChannel: TaskChannel
 
-    let waitType: WaitType
-
     let waitgroup: WaitGroup
 
-    func end() {
-        taskChannel.end()
-    }
+    let waitType: WaitType
 
     /// Initialises an instance of `WorkerThread` type
     /// - Parameters:
@@ -37,6 +33,17 @@ public final class WorkerThread: ThreadPool {
         waitgroup = WaitGroup()
         start(channel: taskChannel)
     }
+
+    deinit {
+        if case .waitForAll = waitType {
+            pollAll()
+        }
+        taskChannel.end()
+    }
+
+}
+
+extension WorkerThread: ThreadPool {
 
     public func cancel() {
         taskChannel.clear()
@@ -55,17 +62,10 @@ public final class WorkerThread: ThreadPool {
         taskChannel.enqueue { [waitgroup] in waitgroup.done() }
         waitgroup.waitForAll()
     }
-
-    deinit {
-        if case .waitForAll = waitType {
-            pollAll()
-        }
-        end()
-    }
 }
 
 func start(channel: TaskChannel) {
-    Thread {
+    Thread { [channel] in
         while let task = channel.dequeue() { task() }
     }.start()
 }

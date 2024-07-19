@@ -26,11 +26,11 @@ import Foundation
 ///
 public final class LockSemaphore {
 
-    var index: Int
-
     let mutex: Mutex
 
     let condition: Condition
+
+    var index: Int
 
     /// Initializes a `LockSemaphore` instance with a fixed number of threads or task
     /// - Parameter size: maximum number of tasks or threads to await
@@ -47,7 +47,7 @@ public final class LockSemaphore {
     /// Indicates that this thread or task has finished its execution.
     /// This should be called only inside the thread or task
     public func notify() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             guard index >= 1 else { return }
             index -= 1
             if index == 0 {
@@ -59,7 +59,7 @@ public final class LockSemaphore {
 
     /// Blocks until there is no more thread or task running
     public func waitForAll() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             condition.wait(mutex: mutex, condition: index == 0)
         }
     }

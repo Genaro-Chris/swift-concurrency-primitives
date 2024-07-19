@@ -4,7 +4,7 @@ import XCTest
 
 final class SynchronizationTests: XCTestCase {
 
-    func test_once() {
+    func test_Once() {
         var total = 0
         DispatchQueue.concurrentPerform(iterations: 10) { _ in
             Once.runOnce {
@@ -14,7 +14,7 @@ final class SynchronizationTests: XCTestCase {
         XCTAssertEqual(total, 1)
     }
 
-    func test_oncestate() {
+    func test_OnceState() {
         var total = 0
         let once = OnceState()
         DispatchQueue.concurrentPerform(iterations: 10) { _ in
@@ -25,7 +25,7 @@ final class SynchronizationTests: XCTestCase {
         XCTAssertEqual(total, 1)
     }
 
-    func test_lock() {
+    func test_Lock() {
         var total = 0
         let lock = Lock()
         DispatchQueue.concurrentPerform(iterations: 11) { index in
@@ -36,7 +36,7 @@ final class SynchronizationTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
-    func test_locked() {
+    func test_Locked() {
         struct Student {
             var age: Int = 0
             var scores: [Int] = []
@@ -53,7 +53,24 @@ final class SynchronizationTests: XCTestCase {
         XCTAssertEqual(student.age, 18)
     }
 
-    func test_locked_wrapper() {
+    func test_LockedWrapper() {
+        struct Student {
+            var age: Int = 0
+            var scores: [Int] = []
+        }
+        @Locked var student = Student()
+        DispatchQueue.concurrentPerform(iterations: 11) { index in
+            $student.updateWhileLocked { student in
+                student.scores.append(index)
+                if index == 9 {
+                    student.age = 18
+                }
+            }
+        }
+        XCTAssertEqual(student.age, 18)
+    }
+
+    func test_LockSemaphore() {
         struct Student {
             var age: Int = 0
             var scores: [Int] = []
@@ -75,7 +92,7 @@ final class SynchronizationTests: XCTestCase {
         XCTAssertEqual(student.age, 18)
     }
 
-    func test_wait_group() {
+    func test_WaitGroup() {
         let lock = Lock()
         var total = 0
         let waitGroup = WaitGroup()

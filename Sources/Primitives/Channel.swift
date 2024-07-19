@@ -31,7 +31,7 @@ public protocol Channel {
     /// that is by calling it's `close` method
     func dequeue() -> Element?
 
-    /// Clears the remaining enqueued items
+    /// Clears the remaining enqueued items if any are remaining
     func clear()
 
     /// Closes the `Channel` instance

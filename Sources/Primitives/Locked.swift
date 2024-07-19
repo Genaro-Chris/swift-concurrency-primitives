@@ -7,11 +7,11 @@
 /// The data can be accessed through in the following ways:
 /// - the ``updateWhileLocked(_:)`` which guarantees that the data is only ever accessed when the lock is acquired
 /// - the inner type instance properties through dynamic member lookup
-///
-///
 /// This `Locked` type is also a property wrapper which means it can be created
 /// easily as follows and it provides a projected value which can be easily
 /// used to update the value.
+///
+/// Note: This is not a recursive lock
 ///
 /// # Examples
 /// a) Using the property wrapper
@@ -21,6 +21,7 @@
 ///     var age: Int
 ///     var scores: [Int]
 /// }
+///
 /// @Locked var student = Student(age: 0, scores: [])
 /// DispatchQueue.concurrentPerform(iterations: 10) { index in
 ///     $student.updateWhileLocked { student in
@@ -41,6 +42,7 @@
 ///     var age: Int
 ///     var scores: [Int]
 /// }
+///
 /// var student = Locked(Student(age: 0, scores: []))
 /// DispatchQueue.concurrentPerform(iterations: 10) { index in
 ///     student.updateWhileLocked { student in
@@ -65,10 +67,10 @@ public final class Locked<Element> {
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
         get {
-            return lock.whileLocked { self.value }
+            return lock.whileLocked { value }
         }
         set {
-            lock.whileLocked { self.value = newValue }
+            lock.whileLockedVoid { value = newValue }
         }
     }
 
@@ -76,20 +78,6 @@ public final class Locked<Element> {
     public init(initialValue: Element) {
         lock = Lock()
         value = initialValue
-    }
-
-    /// This function will block the current thread until it acquires the lock.
-    /// Upon acquiring the lock, only this thread can access or update the value stored in this type.
-    /// - Parameter using: a closure that updates or changes the value stored in this type
-    /// - Returns: value returned from the `using` closure
-    ///
-    /// # Warning
-    /// Avoid calling long running or blocking code while using this function
-    ///
-    public func updateWhileLocked<T>(_ mutate: (inout Element) throws -> T) rethrows -> T {
-        return try lock.whileLocked {
-            return try mutate(&self.value)
-        }
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
@@ -101,6 +89,19 @@ public final class Locked<Element> {
     public var projectedValue: Locked<Element> {
         return self
     }
+
+    /// This function will block the current thread until it acquires the lock.
+    /// Upon acquiring the lock, only this thread can access or update the value stored in this type.
+    /// - Parameter using: a closure that updates or changes the value stored in this type
+    /// - Returns: value returned from the closure passed as argument
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    public func updateWhileLocked<T>(_ mutateWith: (inout Element) throws -> T) rethrows -> T {
+        return try lock.whileLocked {
+            return try mutateWith(&value)
+        }
+    }
 }
 
 extension Locked {
@@ -108,5 +109,4 @@ extension Locked {
     public subscript<T>(dynamicMember memberKeyPath: KeyPath<Element, T>) -> T {
         updateWhileLocked { $0[keyPath: memberKeyPath] }
     }
-
 }

@@ -31,7 +31,7 @@ final class Mutex {
         #if os(Windows)
             InitializeSRWLock(mutex)
         #else
-            
+
             mutex.initialize(to: pthread_mutex_t())
             var mutexAttr: pthread_mutexattr_t = pthread_mutexattr_t()
             pthread_mutexattr_settype(&mutexAttr, .init(PTHREAD_MUTEX_ERRORCHECK))
@@ -42,9 +42,7 @@ final class Mutex {
     }
 
     deinit {
-        #if os(Windows)
-            // SRWLOCK does not need to be freed manually
-        #else
+        #if !os(Windows)
             let err: Int32 = pthread_mutex_destroy(mutex)
             precondition(err == 0, "Couldn't destroy pthread_mutex due to \(err)")
         #endif
@@ -62,7 +60,7 @@ final class Mutex {
     }
 
     /// Releases the lock.
-    /// Warning: Only call this method on the thread that previously locked
+    /// Warning: Only call this method on the same thread that acquired the lock
     /// the mutex
     func unlock() {
         #if os(Windows)
@@ -73,7 +71,7 @@ final class Mutex {
         #endif
     }
 
-    /// Try to acquire the lock
+    /// Checks for lock availability and tries to acquire the lock
     /// - Returns: returns true if lock was acquired successfully, otherwise false
     func tryLock() -> Bool {
         #if os(Windows)
@@ -93,6 +91,22 @@ final class Mutex {
     /// # Warning
     /// Avoid calling long running or blocking code while using this function
     func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
+        lock()
+        defer {
+            unlock()
+        }
+        return try body()
+    }
+
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: closure to be executed while being protected by the lock
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    func whileLockedVoid(_ body: () throws -> Void) rethrows {
         lock()
         defer {
             unlock()

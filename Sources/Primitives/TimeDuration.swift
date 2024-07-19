@@ -1,5 +1,5 @@
 /// A representation of time.
-public enum TimeDuration {
+@frozen public enum TimeDuration {
     case nanoseconds(Double)
     case microseconds(Double)
     case milliseconds(Double)
@@ -12,13 +12,9 @@ extension TimeDuration {
     var timeInNano: Int {
         switch self {
         case let .nanoseconds(time): return Int(time)
-
         case let .microseconds(time): return Int(time * 1_000)
-
         case let .milliseconds(time): return Int(time * 1_000_000)
-
         case let .seconds(time): return Int(time * 1_000_000_000)
-
         }
     }
 }
@@ -29,13 +25,9 @@ extension TimeDuration {
     var timeInMilli: Double {
         switch self {
         case let .nanoseconds(time): return time / 1_000_000
-
         case let .microseconds(time): return time / 1_000
-
         case let .milliseconds(time): return time
-
         case let .seconds(time): return time * 1000
-
         }
     }
 }

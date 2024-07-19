@@ -12,54 +12,7 @@ import Foundation
 /// message passing
 public struct UnboundedChannel<Element> {
 
-    final class Storage {
-
-        var buffer: Deque<Element>
-
-        var count: Int {
-            buffer.count
-        }
-
-        var isEmpty: Bool {
-            buffer.isEmpty
-        }
-
-        var closed: Bool
-
-        var ready: Bool
-
-        init() {
-            buffer = Deque()
-            closed = false
-            ready = false
-        }
-
-        var readyToReceive: Bool {
-            switch (ready, closed) {
-            case (true, true): return true
-            case (true, false): return true
-            case (false, true): return true
-            case (false, false): return false
-            }
-        }
-
-        func enqueue(_ item: Element) {
-            buffer.append(item)
-        }
-
-        func dequeue() -> Element? {
-            guard !buffer.isEmpty else {
-                return nil
-            }
-            return buffer.removeFirst()
-        }
-
-        func clear() {
-            buffer.removeAll()
-        }
-    }
-
-    let storage: Storage
+    private let storage: Storage<Element>
 
     let mutex: Mutex
 
@@ -91,7 +44,7 @@ public struct UnboundedChannel<Element> {
             guard !storage.closed else {
                 return storage.dequeue()
             }
-            condition.wait(mutex: mutex, condition: storage.readyToReceive)
+            condition.wait(mutex: mutex, condition: storage.ready || storage.closed)
             let result: Element? = storage.dequeue()
             if storage.isEmpty {
                 storage.ready = false
@@ -101,11 +54,11 @@ public struct UnboundedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLocked { storage.clear() }
+        mutex.whileLockedVoid { storage.clear() }
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.closed = true
             condition.broadcast()
         }
@@ -138,3 +91,41 @@ extension UnboundedChannel {
 }
 
 extension UnboundedChannel: Channel {}
+
+private final class Storage<Element> {
+
+    var buffer: ContiguousArray<Element>
+
+    var closed: Bool
+
+    var ready: Bool
+
+    var count: Int {
+        buffer.count
+    }
+
+    var isEmpty: Bool {
+        buffer.isEmpty
+    }
+
+    init() {
+        buffer = ContiguousArray()
+        closed = false
+        ready = false
+    }
+
+    func enqueue(_ item: Element) {
+        buffer.append(item)
+    }
+
+    func dequeue() -> Element? {
+        guard !buffer.isEmpty else {
+            return nil
+        }
+        return buffer.removeFirst()
+    }
+
+    func clear() {
+        buffer.removeAll()
+    }
+}

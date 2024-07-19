@@ -44,5 +44,21 @@ import Foundation
             }
             return try body()
         }
+
+        /// Tries to acquire the lock for the duration for the closure passed as
+        /// argument and releases the lock immediately after the closure has finished
+        /// its execution regardless of how it finishes
+        ///
+        /// - Parameter body: closure to be executed while being protected by the lock
+        ///
+        /// # Warning
+        /// Avoid calling long running or blocking code while using this function
+        func whileLockedVoid(_ body: () throws -> Void) rethrows {
+            lock()
+            defer {
+                unlock()
+            }
+            return try body()
+        }
     }
 #endif

@@ -19,7 +19,7 @@ public final class Latch {
     /// - Parameter size: the number of threads to use
     /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
-        if size < 1 {
+        guard size >= 1 else {
             fatalError("Cannot initialize an instance of Latch with count of 0")
         }
         blockedThreadsCount = size
@@ -30,8 +30,8 @@ public final class Latch {
     /// Decrements the count of the `Latch` instance and blocks the current thread
     /// until the instance's count drops to zero
     public func decrementAndWait() {
-        mutex.whileLocked {
-            guard blockedThreadsCount > 0 else {
+        mutex.whileLockedVoid {
+            guard blockedThreadsCount >= 1 else {
                 return
             }
             blockedThreadsCount -= 1
@@ -46,8 +46,8 @@ public final class Latch {
     /// Decrements the count of an `Latch` instance
     /// without blocking the current thread
     public func decrementAlone() {
-        mutex.whileLocked {
-            guard blockedThreadsCount > 0 else {
+        mutex.whileLockedVoid {
+            guard blockedThreadsCount >= 1 else {
                 return
             }
             blockedThreadsCount -= 1
@@ -59,12 +59,13 @@ public final class Latch {
     }
 
     /// Blocks the current thread until the instance's count drops to zero
+    /// without decrementing
     ///
     /// # Warning
     /// This function will deadlock if ``decrementAndWait()`` method
     /// is called more or less than the count passed to the initializer
     public func waitForAll() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             condition.wait(mutex: mutex, condition: blockedThreadsCount == 0)
         }
     }
