@@ -1,24 +1,27 @@
-name: Mac-OS
-on: 
- push: 
-   branches: ["main"]
+name: MacOS
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
 
 jobs:
-  build:
-    name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    timeout-minutes: 45
-    strategy:
-      matrix:
-        os: [macos-latest]
-        swift: ["5.8", "5.9"]
-      fail-fast: false
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: SwiftyLab/setup-swift@v1.5.2
-        with:
-          swift-version: ${{ matrix.swift }}
-      - uses: actions/checkout@v4
-      - name: Build
-        run: swift build --build-tests
-      - name: Run tests
-        run: swift test
+
+    macOS-swift55:
+        name: macOS (Swift 5.5)
+        timeout-minutes: 30
+        runs-on: macos-12
+        steps:
+        - name: Checkout
+          uses: actions/checkout@v1
+        - name: Xcode Version
+          run: |
+            ls -d /Applications/Xcode*
+            sudo xcode-select -s /Applications/Xcode_13.1.app
+            xcodebuild -version
+            swift --version
+        - name: Swift Build
+          run: swift build --build-tests
+        - name: Swift Test
+          run: swift test -Xswiftc -enable-testing

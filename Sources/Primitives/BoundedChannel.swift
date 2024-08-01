@@ -1,65 +1,18 @@
-import Atomics
 import Foundation
 
 /// A buffered blocking threadsafe construct for multithreaded execution context
 ///  which serves as a communication mechanism between two or more threads
 ///
 /// A fixed size buffer channel which means at any given time it can only contain a certain number of items in it, it
-/// blocks on the sender's side if the buffer has reached that certain number
+/// blocks on the sender's side if the buffer is full
+///
+/// This is a multi-producer single-consumer concurrency primitives
+/// where they are usually multiple senders and only one receiver useful for
+/// message passing
 @_spi(OtherChannels)
-@frozen
-@_eagerMove
 public struct BoundedChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
-
-        let capacity: Int
-
-        let buffer: Buffer<Value>
-
-        var send: Bool
-
-        var receive: Bool
-
-        var bufferCount: Int
-
-        var closed: Bool
-
-        init(capacity: Int) {
-            self.capacity = capacity
-            buffer = Buffer<Value>()
-            send = true
-            receive = false
-            bufferCount = 0
-            closed = false
-        }
-
-        var receiveReady: Bool {
-            switch (receive, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-
-        var sendReady: Bool {
-            switch (send, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-    }
-
-    let storage: _Storage<Element>
+    private let storage: MultiElementStorage<Element>
 
     let sendCondition: Condition
 
@@ -67,6 +20,8 @@ public struct BoundedChannel<Element> {
 
     let mutex: Mutex
 
+    /// Buffer size
+    ///
     /// Maximum number of stored items at any given time
     public var capacity: Int {
         mutex.whileLocked {
@@ -76,23 +31,22 @@ public struct BoundedChannel<Element> {
 
     /// Initializes an instance of `BoundedChannel` type
     /// - Parameter size: maximum capacity of the channel
-    /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
-        guard size > 0 else {
-            preconditionFailure("Cannot initialize this channel with capacity of 0")
+        guard size >= 1 else {
+            fatalError("Cannot initialize this channel with capacity less than 1")
         }
-        storage = _Storage(capacity: size)
+        storage = MultiElementStorage(capacity: size)
         sendCondition = Condition()
         receiveCondition = Condition()
         mutex = Mutex()
     }
 
-    public func enqueue(_ item: Element) -> Bool {
+    public func enqueue(item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
                 return false
             }
-            sendCondition.wait(mutex: mutex, condition: storage.sendReady)
+            sendCondition.wait(mutex: mutex, condition: storage.send || storage.closed)
             guard !storage.closed else {
                 return false
             }
@@ -100,7 +54,7 @@ public struct BoundedChannel<Element> {
             if storage.bufferCount == storage.capacity {
                 storage.send = false
             }
-            storage.buffer.enqueue(item)
+            storage.enqueue(item)
             storage.receive = true
             receiveCondition.signal()
             return true
@@ -110,27 +64,27 @@ public struct BoundedChannel<Element> {
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
-                return storage.buffer.dequeue()
+                return storage.dequeue()
             }
-            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
+            receiveCondition.wait(mutex: mutex, condition: storage.receive || storage.closed)
             storage.bufferCount -= 1
             if storage.bufferCount == 0 {
                 storage.receive = false
             }
             storage.send = true
             sendCondition.signal()
-            return storage.buffer.dequeue()
+            return storage.dequeue()
         }
     }
 
     public func clear() {
-        mutex.whileLocked {
-            storage.buffer.clear()
+        mutex.whileLockedVoid {
+            storage.clear()
         }
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.closed = true
             sendCondition.broadcast()
             receiveCondition.broadcast()
@@ -138,12 +92,11 @@ public struct BoundedChannel<Element> {
     }
 }
 
-extension BoundedChannel {
+extension BoundedChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()
     }
-
 }
 
 extension BoundedChannel {
@@ -154,13 +107,16 @@ extension BoundedChannel {
 
     public var length: Int {
         return mutex.whileLocked {
-            storage.buffer.count
+            storage.count
         }
     }
 
     public var isEmpty: Bool {
-        storage.buffer.isEmpty
+        return mutex.whileLocked {
+            storage.isEmpty
+        }
     }
 }
 
 extension BoundedChannel: Channel {}
+

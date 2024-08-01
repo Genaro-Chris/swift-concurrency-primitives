@@ -1,69 +1,71 @@
-import Atomics
 import Foundation
 
-public typealias WorkItem = () -> Void
+/// A special kind of concurrency primitive construct that allows one to submit tasks
+/// to be executed on a separate thread.
+///
+/// This is particularly useful for dispatching heavy workload off the current thread.
+///
+/// It is very similar to swift [DispatchSerialQueue](https://developer.apple.com/documentation/dispatch/dispatchserialqueue)
+///
+/// Example
+/// ```swift
+/// let threadHandle = WorkerThread(name: "Thread", waitType: .canncelAll)
+/// for index in 1 ... 10 {
+///    threadHandle.submit {
+///         // some heavy CPU bound work
+///    }
+/// }
+/// ```
+public final class WorkerThread {
 
-public typealias SendableWorkItem = @Sendable () -> Void
+    let taskChannel: TaskChannel
 
-final class WorkerThread: Thread {
+    let waitgroup: WaitGroup
 
-    let latch: Latch
+    let waitType: WaitType
 
-    let queue: UnboundedChannel<() -> Void>
-
-    let threadName: String
-
-    var isBusyExecuting: Bool {
-        isBusy.load(ordering: .relaxed)
+    /// Initialises an instance of `WorkerThread` type
+    /// - Parameters:
+    ///   - waitType: value of `WaitType`
+    public init(waitType: WaitType = .cancelAll) {
+        self.waitType = waitType
+        taskChannel = TaskChannel()
+        waitgroup = WaitGroup()
+        start(channel: taskChannel)
     }
 
-    var isEmpty: Bool {
-        queue.isEmpty
-    }
-
-    override var name: String? {
-        get { threadName }
-        set {}
-    }
-
-    let isBusy: ManagedAtomic<Bool>
-
-    func submit(_ body: @escaping () -> Void) {
-        queue <- body
-    }
-
-    init(_ name: String) {
-        latch = Latch(size: 1)
-        queue = UnboundedChannel()
-        isBusy = ManagedAtomic(false)
-        threadName = name
-        super.init()
-    }
-
-    override func main() {
-        while !self.isCancelled {
-            for operation in queue {
-                isBusy.store(true, ordering: .relaxed)
-                operation()
-                isBusy.store(false, ordering: .relaxed)
-            }
-            isBusy.store(false, ordering: .relaxed)
+    deinit {
+        if case .waitForAll = waitType {
+            pollAll()
         }
-        latch.decrementAndWait()
+        taskChannel.end()
     }
 
-    func clear() {
-        queue.clear()
+}
+
+extension WorkerThread: ThreadPool {
+
+    public func cancel() {
+        taskChannel.clear()
     }
 
-    override func cancel() {
-        queue.close()
-        queue.clear()
-        super.cancel()
+    public func submit(_ body: @escaping () -> Void) {
+        taskChannel.enqueue(body)
     }
 
-    func join() {
-        latch.waitForAll()
+    public func async(_ body: @escaping @Sendable () -> Void) {
+        taskChannel.enqueue(body)
     }
 
+    public func pollAll() {
+        waitgroup.enter()
+        taskChannel.enqueue { [waitgroup] in waitgroup.done() }
+        waitgroup.waitForAll()
+    }
+}
+
+fileprivate func start(channel: TaskChannel) {
+    Thread { [weak channel] in
+        while let task = channel?.dequeue() { task() }
+    }.start()
 }

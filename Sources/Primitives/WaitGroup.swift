@@ -4,7 +4,11 @@ import Foundation
 ///
 /// The caller threads calls ``enter()`` a number of times to set the number of
 /// threads to wait for. Then each of the threads runs and calls ``done()`` when finished.
-///  Then, ``waitForAll()`` can be used to block until all threads have finished.
+/// 
+///  The ``waitForAll()`` method will block until all threads have finished their execution.
+/// 
+/// This is useful for threads coordination if the number of threads is not
+/// previously known 
 ///
 /// This is similar to Go's [sync.WaitGroup](https://pkg.go.dev/sync#WaitGroup)
 /// and Swift's [DispatchGroup](https://developer.apple.com/documentation/dispatch/dispatchgroup)
@@ -24,14 +28,13 @@ import Foundation
 /// }
 /// waitGroup.waitForAll()
 /// ```
-@_fixed_layout
 public final class WaitGroup {
-
-    var index: Int
 
     let mutex: Mutex
 
     let condition: Condition
+
+    var index: Int
 
     /// Initializes a `WaitGroup` instance
     public init() {
@@ -43,7 +46,7 @@ public final class WaitGroup {
     /// This indicates that a new thread is about to start.
     /// This should be called only outside the thread doing the work.
     public func enter() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             index += 1
         }
     }
@@ -51,8 +54,8 @@ public final class WaitGroup {
     /// Indicates that it is done executing this thread.
     /// This should be called only in the thread doing the work.
     public func done() {
-        mutex.whileLocked {
-            guard index > 0 else { return }
+        mutex.whileLockedVoid {
+            guard index >= 1 else { return }
             index -= 1
             if index == 0 {
                 condition.broadcast()
@@ -61,8 +64,11 @@ public final class WaitGroup {
     }
 
     /// Blocks until there is no more thread running
+    ///
+    /// This method no blocks the current thread execution only if one or more
+    /// calls to the `enter` method
     public func waitForAll() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             condition.wait(mutex: mutex, condition: index == 0)
         }
     }

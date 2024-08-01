@@ -4,7 +4,7 @@ import XCTest
 
 final class ThreadPoolTests: XCTestCase {
 
-    func test_pool_with_locked() {
+    func test_WorkerPool_With_Locked() {
         @Locked var total = 0
         do {
             let pool = WorkerPool(size: 4, waitType: .waitForAll)
@@ -17,7 +17,7 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
-    func test_cancelling_pool_with_locked() {
+    func test_Cancelling_WorkerPool_With_Locked() {
         @Locked var total = 0
         do {
             let pool = WorkerPool(size: 3, waitType: .cancelAll)
@@ -31,9 +31,9 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertNotEqual(total, 55)
     }
 
-    func test_singlethread() {
+    func test_WorkerThread() {
         @Locked var total = 0
-        let handle = SingleThread(waitType: .cancelAll)
+        let handle = WorkerThread(waitType: .cancelAll)
         for index in 1...10 {
             handle.submit {
                 $total.updateWhileLocked { $0 += index }
@@ -43,10 +43,10 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
-    func test_cancelling_singlethread() {
+    func test_Cancelling_WorkerThread() {
         @Locked var total = 0
         do {
-            let handle = SingleThread(waitType: .cancelAll)
+            let handle = WorkerThread(waitType: .cancelAll)
             for index in 1...10 {
                 handle.submit {
                     Thread.sleep(forTimeInterval: 0.7)
@@ -57,7 +57,7 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertNotEqual(total, 55)
     }
 
-    func test_worker_pool() {
+    func test_WorkerPool() {
         @Locked var total = 0
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1...10 {
@@ -69,7 +69,7 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
-    func test_global_pool() {
+    func test_Global_WorkerPool() {
         @Locked var total = 0
         for index in 1...10 {
             WorkerPool.globalPool.submit {
@@ -80,7 +80,7 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
-    func test_polling_pool() {
+    func test_Polling_WorkerPool() {
         @Locked var total = 0
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1...5 {
@@ -98,15 +98,28 @@ final class ThreadPoolTests: XCTestCase {
         XCTAssertEqual(total, 55)
     }
 
-    func test_thread_pool_with_sendable_closure() {
+    func test_Cancel_WorkerPool() {
         @Locked var total = 0
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         for index in 1...10 {
-            pool.async {
+            pool.submit {
+                Thread.sleep(forTimeInterval: 0.5)
                 $total.updateWhileLocked { $0 += index }
             }
         }
+        pool.cancel()
+        XCTAssertNotEqual(total, 55)
+    }
+
+    func test_WorkerPool_With_Sendable_Closure() {
+        let total = Locked(initialValue: 0)
+        let pool = WorkerPool(size: 4, waitType: .cancelAll)
+        for index in 1...10 {
+            pool.async {
+                total.updateWhileLocked { $0 += index }
+            }
+        }
         pool.pollAll()
-        XCTAssertEqual(total, 55)
+        XCTAssertEqual(total.wrappedValue, 55)
     }
 }

@@ -3,17 +3,21 @@ import XCTest
 
 final class PrimitivesTests: XCTestCase {
 
-    func test_queue() {
+    func test_Queue() {
         let queue = Queue<String>()
-        (0...9).forEach { [queue] index in queue.enqueue("\(index)") }
+        DispatchQueue.concurrentPerform(iterations: 10) { [queue] index in
+            queue.enqueue(item: "\(index)")
+        }
         let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map { String($0) }
-        let result: [String] = queue.map { $0 }
-        XCTAssertEqual(result, expected)
-        XCTAssertEqual(result.count, 10)
+        var results: [String] = []
+        while let result = queue.dequeue() {
+            results.append(result)
+        }
+        XCTAssertEqual(results.sorted(), expected)
+        XCTAssertEqual(results.count, 10)
     }
 
-
-    func test_latch() {
+    func test_Latch() {
         var queue = 0
         let latch = Latch(size: 10)
         let lock = Lock()
@@ -29,7 +33,7 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(queue, 55)
     }
 
-    func test_latch_decrement_alone() {
+    func test_Latch_DecrementAlone() {
         var queue = 0
         let latch = Latch(size: 11)
         let lock = Lock()
@@ -46,9 +50,9 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(queue, 55)
     }
 
-    func test_barrier() {
+    func test_Barrier() {
         let barrier = Barrier(size: 2)
-        let semaphore = Semaphore(size: 10)
+        let semaphore = LockSemaphore(size: 10)
         let lock = Lock()
         var total = 0
         XCTAssertNotNil(barrier)
@@ -69,7 +73,7 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(total, 10)
     }
 
-    func test_barrier_decrement_alone() {
+    func test_Barrier_DecrementAlone() {
         let barrier = Barrier(size: 5)
         let lock = Lock()
         var total = 0
@@ -96,9 +100,9 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(total, 10)
     }
 
-    func testConditionWithSignal() {
+    func test_Condition_Signal() {
         let condition = Condition()
-        let lock = Mutex(type: .normal)
+        let lock = Mutex()
         var total = 0
         let threadHanddles = (1...5).map { index in
             Thread {
@@ -120,7 +124,7 @@ final class PrimitivesTests: XCTestCase {
         }
     }
 
-    func testConditionWithBroadcast() {
+    func test_Condition_Broadcast() {
         let condition = Condition()
         let lock = Mutex()
         var total = 0
@@ -144,7 +148,7 @@ final class PrimitivesTests: XCTestCase {
         }
     }
 
-    func testConditionSleepWithBroadcast() {
+    func test_Condition_Wait() {
         let condition = Condition()
         let lock = Mutex()
         let total = 0
@@ -159,7 +163,6 @@ final class PrimitivesTests: XCTestCase {
                         condition.signal()
                     }
                 }
-
             }
         }
 

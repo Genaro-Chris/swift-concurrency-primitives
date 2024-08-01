@@ -1,8 +1,7 @@
-import Atomics
 import Foundation
 
-/// A collection of fixed size of pre-started, idle worker threads that is ready to execute asynchronous
-/// code concurrently between all threads.
+/// A collection of fixed size of pre-started, idle worker threads that is ready to execute 
+/// code asynchronously, executing code concurrently between all threads.
 ///
 /// It is very similar to Swift's [DispatchQueue](https://developer.apple.com/documentation/dispatch/dispatchqueue)
 ///
@@ -17,132 +16,97 @@ import Foundation
 /// ```
 public final class WorkerPool {
 
-    enum QueueOperations {
+    let taskChannels: [TaskChannel]
 
-        case ready(WorkItem)
-        case wait(Barrier)
-    }
+    let waitGroup: WaitGroup
+
+    let indexer: Locked<Int>
 
     let waitType: WaitType
-
-    let queue: UnboundedChannel<QueueOperations>
-
-    let handles: [NamedThread]
-
-    let barrier: Barrier
-
-    let started: OnceState
-
-    let isBusy: ManagedAtomic<Bool>
-
-    func submitRandomly(_ body: @escaping WorkItem) {
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
-        queue <- .ready(body)
-    }
 
     /// Initializes an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
     ///   - waitType: value of `WaitType`
-    public init(size: Int, waitType: WaitType) {
-        guard size > 0 else {
-            preconditionFailure("Cannot initialize an instance of WorkerPool with 0 thread")
+    public init(size: Int, waitType: WaitType = .cancelAll) {
+        guard size >= 1 else {
+            fatalError("Cannot initialize an instance of WorkerPool with 0 Threads")
         }
         self.waitType = waitType
-        queue = UnboundedChannel()
-        barrier = Barrier(size: size + 1)
-        isBusy = ManagedAtomic(false)
-        started = OnceState()
-        handles = start(queue: queue, size: size, isBusy: isBusy)
+        waitGroup = WaitGroup()
+        taskChannels = start(size: size)
+        indexer = Locked(initialValue: 0)
     }
 
     deinit {
-        guard started.hasExecuted else { return }
-        switch waitType {
-        case .cancelAll: cancel()
-
-        case .waitForAll:
+        if case .waitForAll = waitType {
             pollAll()
-            cancel()
         }
-        handles.forEach { $0.join() }
+        taskChannels.forEach { $0.end() }
+    }
+
+    /// This enqueues a block of code to be executed by a specific thread in the 
+    /// ``WorkerPool`` type
+    /// 
+    /// - Parameters:
+    ///   - index: The position of the thread to enqueue the closure
+    ///   - body: a non-throwing sendable closure that takes nothing and returns void
+    /// - Returns: true if the code was successfully enqueued for execution otherwise false
+    public func submitToSpecificThread(at index: Int, _ body: @escaping () -> Void) -> Bool {
+        guard (0..<taskChannels.count).contains(index) else {
+            return false
+        }
+        taskChannels[index].enqueue(body)
+        return true
+    }
+
+    // Ensures that the index is accessed in a data race free manner
+    func currentIndex() -> Int {
+        return indexer.updateWhileLocked { index in
+            let oldIndex: Int = index
+            index = (oldIndex + 1) % taskChannels.count
+            return oldIndex
+        }
     }
 }
 
 extension WorkerPool {
 
-    /// This represents a global multithreaded pool similar to `DispatchQueue.global()`
-    /// as it contains the same number of threads as the total number of processor count
-    public static let globalPool = WorkerPool(
-        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .waitForAll)
+    /// This represents a global multi-threaded pool similar to `DispatchQueue.global()`
+    /// as it contains the same number of Threads as the total number of processor count
+    public static let globalPool: WorkerPool = WorkerPool(
+        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .cancelAll)
 }
 
 extension WorkerPool: ThreadPool {
 
-    public func async(_ body: @escaping SendableWorkItem) {
-        submitRandomly(body)
+    public func async(_ body: @escaping @Sendable () -> Void) {
+        taskChannels[currentIndex()].enqueue(body)
     }
 
-    public func submit(_ body: @escaping WorkItem) {
-        submitRandomly(body)
+    public func submit(_ body: @escaping () -> Void) {
+        taskChannels[currentIndex()].enqueue(body)
     }
 
     public func cancel() {
-        guard started.hasExecuted else { return }
-        queue.clear()
-        queue.close()
-        handles.forEach { $0.cancel() }
-    }
-
-    public var isBusyExecuting: Bool {
-        isBusy.load(ordering: .relaxed)
+        taskChannels.forEach { $0.clear() }
     }
 
     public func pollAll() {
-        guard started.hasExecuted else { return }
-        (0..<handles.count).forEach { _ in
-            queue <- .wait(barrier)
+        taskChannels.forEach { taskChannel in
+            waitGroup.enter()
+            taskChannel.enqueue { [waitGroup] in waitGroup.done() }
         }
-        barrier.arriveAndWait()
+        waitGroup.waitForAll()
     }
 }
 
-extension WorkerPool: CustomStringConvertible {
-    public var description: String {
-        "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
-    }
-}
-
-extension WorkerPool: CustomDebugStringConvertible {
-    public var debugDescription: String {
-        let threadNames = handles.map { handle in
-            " - " + (handle.name!) + "\n"
-        }.reduce("") { acc, name in
-            return acc + name
-        }
-        return
-            "WorkerPool of \(waitType) type with \(handles.count) thread\(handles.count == 1 ? "" : "s")"
-            + ":\n" + threadNames
-
-    }
-}
-
-func start(
-    queue: UnboundedChannel<WorkerPool.QueueOperations>, size: Int, isBusy: ManagedAtomic<Bool>
-) -> [NamedThread] {
-    (0..<size).map { index in
-        NamedThread("WorkerPool #\(index)") {
-            for operation in queue where !Thread.current.isCancelled {
-                switch operation {
-
-                case let .ready(work): work()
-
-                case let .wait(barrier): barrier.arriveAndWait()
-
-                }
-            }
-        }
+fileprivate func start(size: Int) -> [TaskChannel] {
+    (0..<size).map { _ in
+        let channel: TaskChannel = TaskChannel()
+        Thread { [weak channel] in
+            while let ops = channel?.dequeue() { ops() }
+        }.start()
+        return channel
     }
 }

@@ -12,6 +12,10 @@ A concurrency primitive package written in swift for swift developers
 This package provides various basic concurrency primitives such as `Lock`, `Locked` which is similar to `Mutex` in other languages, `ThreadPool`, `Channel` and `Queue`.
 This package aims to provide concurrency primitives that are readily available in other programming languages but not in swift.
 
+Most of the constructs shouldn't be used in async context because they block a thread's execution flow thereby violating the swift's runtime contract: forward progress of thread execution.
+
+This package serves as an alternative to the ``Dispatch`` module of the swift language with a few more concurrency constructs.
+
 # Installation
 
 To use this package
@@ -50,7 +54,7 @@ This package also provides some constructs that synchronize concurrent accesses 
 
 This package even provide some constructs for co-ordination for threads by waiting for all threads to finish their execution
 
-- [Notifier](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/notifier)
+- [LockSemaphore](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/locksemaphore)
 - [WaitGroup](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/waitgroup)
 
 
@@ -66,8 +70,8 @@ This package provides some concurrency constructs that enable threads share memo
 
 This package provides some concurrency construct that efficiently manage a fized size of worker threads ready to execute code.
 
-- [SingleThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/singlethread)
-- [WorkerPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/WorkerPool)
+- [WorkerThread](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/workerthread)
+- [WorkerPool](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/workerpool)
 
 ### Call Once
 
@@ -88,7 +92,7 @@ For some practical usage for this package, take a good look at [ExampleApp](Exam
 
 ## Contributing
 
-I highly welcome and encourage all sorts of contributions from all developers.
+I highly welcome and encourage all sorts of contributions from all swift developers.
 
 ## License
 This package is released under Apache-2.0 license. See [LICENSE](LICENSE.txt) for more information.

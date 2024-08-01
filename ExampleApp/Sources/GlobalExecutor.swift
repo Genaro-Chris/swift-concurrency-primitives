@@ -1,10 +1,6 @@
 import Foundation
 @preconcurrency import Primitives
 
-public typealias TaskItem = () -> Void
-
-public typealias SendableTaskItem = @Sendable () -> Void
-
 /// The class that replaces the global concurrency by enqueueing jobs onto some `ThreadPool` type
 public final class CustomGlobalExecutor: SerialExecutor {
     public func asUnownedSerialExecutor() -> UnownedSerialExecutor {
@@ -31,7 +27,7 @@ public final class CustomGlobalExecutor: SerialExecutor {
 }
 
 /// Does what the name implies
-func replacesSwiftGlobalConcurrencyHook() {
+func replacesSwiftGlobalConcurrencyExecutor() {
     // This ensures that we only replace the global concurrency hook only once per process
     Once.runOnce {
         typealias EnqueueOriginal = @convention(thin) (UnownedJob) -> Void

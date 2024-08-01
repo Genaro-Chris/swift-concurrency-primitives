@@ -1,7 +1,7 @@
 import Foundation
 @preconcurrency import Primitives
 
-/// This enqueues job onto a `SingleThread` which means that the jobs executes in the order in which they were
+/// This enqueues job onto a `WorkerThread` which means that the jobs executes in the order in which they were
 /// enqueued thus avoiding data race
 final class SerialJobExecutor: SerialExecutor {
 
@@ -11,7 +11,7 @@ final class SerialJobExecutor: SerialExecutor {
 
     init() {}
 
-    private let threadHandle = SingleThread(name: "ActorHandle", waitType: .waitForAll)
+    private let threadHandle = WorkerThread()
 
     func enqueue(_ job: consuming ExecutorJob) {
         let job = UnownedJob(job)

@@ -1,4 +1,4 @@
-// swift-tools-version: 5.8
+// swift-tools-version: 5.5
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -14,21 +14,18 @@ let package = Package(
             name: "Primitives",
             targets: ["Primitives"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/apple/swift-atomics", from: "1.2.0")
-    ],
+    dependencies: [],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "Primitives",
-            dependencies: [
-                .product(name: "Atomics", package: "swift-atomics")
-            ]),
+            dependencies: []
+        ),
         .testTarget(
             name: "Primitives-Tests",
             dependencies: ["Primitives"],
             path: "Tests/PrimitivesTests"
-        )
+        ),
     ]
 )

@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// `Lock` is concurrency primitive construct that provides mutual exclusion useful for
@@ -8,6 +7,8 @@ import Foundation
 /// to become available before proceeding it's execution.
 ///
 /// This provides an abstraction over the underlying mutex for each system
+///
+/// Note: This is not a recursive lock
 ///
 /// # Example
 ///
@@ -50,13 +51,12 @@ import Foundation
 /// }
 /// ```
 ///
-@frozen
 public struct Lock {
 
     #if canImport(Darwin)
-        @usableFromInline let lock: DarwinLock
+        let lock: DarwinLock
     #else
-        @usableFromInline let lock: Mutex
+        let lock: Mutex
     #endif
 
     /// Initialises an instance of the `Lock` type
@@ -73,12 +73,23 @@ public struct Lock {
     /// its execution regardless of how it finishes
     ///
     /// - Parameter body: closure to be executed while being protected by the lock
-    /// - Returns: value returned from the body closure
+    /// - Returns: value returned from the closure passed as argument
     ///
-    /// # Note
+    /// # Warning
     /// Avoid calling long running or blocking code while using this function
-    @_transparent @_alwaysEmitIntoClient
     public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
         return try lock.whileLocked(body)
+    }
+
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: closure to be executed while being protected by the lock
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    public func whileLockedVoid(_ body: () throws -> Void) rethrows {
+        try lock.whileLockedVoid(body)
     }
 }

@@ -1,5 +1,3 @@
-import Atomics
-
 /// A synchronization primitive which provides a way of executing code exactly once
 ///  per process or run a one-time global initialization.
 ///
@@ -15,17 +13,17 @@ import Atomics
 /// ```
 public enum Once {
 
-    static let done: ManagedAtomic<Bool> = ManagedAtomic(false)
+    static let done: Locked<Bool> = Locked(initialValue: false)
 
     /// Runs only once per process no matter how many these times it was called
     /// - Parameter body: a closure is to be exexcuted
-    public static func runOnce(_ body: @escaping () throws -> Void) rethrows {
-        guard
-            done.compareExchange(expected: false, desired: true, ordering: .relaxed)
-                .exchanged
-        else {
-            return
+    public static func runOnce(_ body: () throws -> Void) rethrows {
+        return try done.updateWhileLocked { executed in
+            guard !executed else {
+                return
+            }
+            executed = true
+            try body()
         }
-        return try body()
     }
 }

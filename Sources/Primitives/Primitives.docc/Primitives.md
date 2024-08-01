@@ -6,8 +6,9 @@ A concurrency primitive package written in swift for swift developers
 
 This package provides various basic concurrency primitives such as ``Lock`` which is similar to `Mutex` in other languages, ``Locked``, ``ThreadPool``, ``Channel`` and ``Queue``. This package aims to provide concurrency primitives that are readily available in other programming languages but not in swift.
 
-Most of the constructs shouldn't be used in async context because they block a thread's execution flow thereby violating the swift's runtime contract forward progress of thre.
+Most of the constructs shouldn't be used in async context because they block a thread's execution flow thereby violating the swift's runtime contract: forward progress of thread execution.
 
+This package serves as an alternative to the ``Dispatch`` module of the swift language with a few more concurrency constructs.
 
 ## Topics
 
@@ -22,7 +23,7 @@ This package also provides some constructs that synchronize concurrent accesses 
 
 This package even provide some constructs for threads co-ordination by waiting for all threads to finish their execution
 
-- ``Notifier``
+- ``LockSemaphore``
 - ``WaitGroup``
 
 
@@ -39,7 +40,7 @@ This package provides some concurrency constructs that enable threads share memo
 
 This package provides some concurrency constructs that efficiently manage a fized size of worker threads ready to execute code. 
 
-- ``SingleThread``
+- ``WorkerThread``
 - ``WorkerPool``
 
 ### Call Once

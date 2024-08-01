@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// One sized buffered channel for multithreaded execution context which serves
@@ -7,72 +6,19 @@ import Foundation
 /// An enqueue operation on an unbuffered channel is synchronized before (and thus happens
 /// before) the completion of a dequeue from that channel. A dequeue operation on an unbuffered channel
 /// is synchronized before (and thus happens before) the completion of a corresponding or next enqueue operation
-/// on that channel. In other words, if a thread enqueues a value through an unbuffered channel, the
-/// receiving thread will complete the reception of that value, and then the enqueueing thread will
-/// finish enqueueing that value.
+/// on that channel. In other words, if a thread enqueues a value into an unbuffered channel, the
+/// receiving thread must complete the reception of that value before the next enqueue operation will happen
+///
+/// This is a multi-producer single-consumer concurrency primitives
+/// where they are usually multiple senders and only one receiver useful for
+/// message passing
 ///
 /// This means at any given time it can only contain a single item in it and any more enqueue operations on
-/// `UnbufferedChannel` with a value will block until a dequeue operation have being done
+/// `UnbufferedChannel` with a value will block until a dequeue operation have finish its execution
 @_spi(OtherChannels)
-@frozen
-@_eagerMove
 public struct UnbufferedChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
-
-        init() {
-            innerValue = nil
-
-            send = true
-
-            receive = false
-
-            closed = false
-        }
-
-        private var innerValue: Value?
-
-        var value: Value? {
-            _read {
-                yield innerValue
-            }
-            _modify {
-                yield &innerValue
-            }
-        }
-
-        var send: Bool
-
-        var receive: Bool
-
-        var closed: Bool
-
-        var receiveReady: Bool {
-            switch (receive, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-
-        var sendReady: Bool {
-            switch (send, closed) {
-            case (true, true): return true
-
-            case (true, false): return true
-
-            case (false, true): return true
-
-            case (false, false): return false
-            }
-        }
-    }
-
-    let storage: _Storage<Element>
+    private let storage: SingleItemStorage<Element>
 
     let mutex: Mutex
 
@@ -82,18 +28,18 @@ public struct UnbufferedChannel<Element> {
 
     /// Initializes an instance of `UnbufferedChannel` type
     public init() {
-        storage = _Storage()
+        storage = SingleItemStorage()
         mutex = Mutex()
         sendCondition = Condition()
         receiveCondition = Condition()
     }
 
-    public func enqueue(_ item: Element) -> Bool {
+    public func enqueue(item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
                 return false
             }
-            sendCondition.wait(mutex: mutex, condition: storage.sendReady)
+            sendCondition.wait(mutex: mutex, condition: storage.send || storage.closed)
             guard !storage.closed else {
                 return false
             }
@@ -108,12 +54,12 @@ public struct UnbufferedChannel<Element> {
     public func dequeue() -> Element? {
         return mutex.whileLocked {
             guard !storage.closed else {
-                let result = storage.value
+                let result: Element? = storage.value
                 storage.value = nil
                 return result
             }
-            receiveCondition.wait(mutex: mutex, condition: storage.receiveReady)
-            let result = storage.value
+            receiveCondition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            let result: Element? = storage.value
             storage.value = nil
             if !storage.closed {
                 storage.send = true
@@ -125,14 +71,14 @@ public struct UnbufferedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.value = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.closed = true
             sendCondition.broadcast()
             receiveCondition.broadcast()
@@ -141,7 +87,7 @@ public struct UnbufferedChannel<Element> {
     }
 }
 
-extension UnbufferedChannel {
+extension UnbufferedChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()

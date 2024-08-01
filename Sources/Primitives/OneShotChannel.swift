@@ -1,11 +1,10 @@
-import Atomics
 import Foundation
 
 /// A single use blocking threadsafe construct for multithreaded execution context which serves
 /// as a communication mechanism between two threads
 ///
 /// This is useful in scenarios where a developer needs to send just a value safely across
-/// miltithreaded context
+/// multithreaded context
 ///
 /// # Example
 ///
@@ -17,55 +16,39 @@ import Foundation
 ///
 /// let channel = OneShotChannel<Int>()
 /// DispatchQueue.global() {
-///     channel <- (await getIntAsync())
+///     channel <- getInt()
 /// }
+/// 
 /// // do other work
 /// if let value = <-channel {
 ///    print("Got \(value)")
 /// }
 /// ```
-@frozen
-@_eagerMove
 public struct OneShotChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
-
-        var buffer: Value
-
-        var readyToReceive: Bool
-
-        var closed: Bool
-
-        init(_ value: Value) {
-            buffer = value
-            readyToReceive = false
-            closed = false
-        }
-    }
+    private let storage: SingleItemStorage<Element>
 
     let mutex: Mutex
 
     let condition: Condition
 
-    let storage: _Storage<Element?>
-
     /// Initializes an instance of `OneShotChannel` type
     public init() {
-        storage = _Storage(nil)
+        storage = SingleItemStorage()
         mutex = Mutex()
         condition = Condition()
     }
 
-    public func enqueue(_ item: Element) -> Bool {
+    public func enqueue(item: Element) -> Bool {
         mutex.whileLocked {
-            guard !storage.readyToReceive else {
+            guard !storage.receive else {
                 return false
             }
             guard !storage.closed else {
                 return false
             }
-            storage.buffer = item
-            storage.readyToReceive = true
+            storage.value = item
+            storage.receive = true
             condition.signal()
             return true
         }
@@ -74,35 +57,37 @@ public struct OneShotChannel<Element> {
 
     public func dequeue() -> Element? {
         return mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: storage.readyToReceive || storage.closed)
-            let result = storage.buffer
-            storage.buffer = nil
+            condition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            let result: Element? = storage.value
+            storage.value = nil
             return result
         }
 
     }
 
     public func clear() {
-        mutex.whileLocked {
-            storage.buffer = nil
+        mutex.whileLockedVoid {
+            storage.value = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
+            guard !storage.closed else {
+                return
+            }
             storage.closed = true
             condition.broadcast()
         }
     }
 }
 
-extension OneShotChannel {
+extension OneShotChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()
     }
-
 }
 
 extension OneShotChannel {
@@ -113,7 +98,7 @@ extension OneShotChannel {
 
     public var length: Int {
         return mutex.whileLocked {
-            switch storage.buffer {
+            switch storage.value {
             case .none: return 0
             case .some: return 1
             }
@@ -122,7 +107,7 @@ extension OneShotChannel {
 
     public var isEmpty: Bool {
         return mutex.whileLocked {
-            switch storage.buffer {
+            switch storage.value {
             case .none: return true
             case .some: return false
             }

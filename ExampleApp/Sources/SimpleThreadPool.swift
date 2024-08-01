@@ -6,35 +6,26 @@ public final class SimpleThreadPool {
 
     let waitType: WaitType
 
-    let handles: [UnnamedThread]
+    let taskChannel: UnboundedChannel<() -> Void>
+
+    let handles: [NamedThread]
 
     let barrier: Barrier
 
     let started: OnceState
 
     private func end() {
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
+        guard started.hasExecuted else { return }
+        taskChannel.close()
+        taskChannel.clear()
         handles.forEach { $0.cancel() }
     }
 
-    private func submitRandomly(_ body: @escaping WorkItem) {
+    private func submitRandomly(_ body: @escaping () -> Void) {
         started.runOnce {
             handles.forEach { $0.start() }
         }
-        handles.randomElement()?.submit(body)
-    }
-
-    public func submitToSpecificThread(at index: Int, _ body: @escaping WorkItem) -> Bool {
-        guard (0..<handles.count).contains(index) else {
-            return false
-        }
-        started.runOnce {
-            handles.forEach { $0.start() }
-        }
-        handles[index].submit(body)
-        return true
+        taskChannel <- body
     }
 
     public init(size: Int, waitType: WaitType) {
@@ -44,9 +35,11 @@ public final class SimpleThreadPool {
         self.waitType = waitType
         barrier = Barrier(size: size + 1)
         started = OnceState()
+        let taskChannel = UnboundedChannel<() -> Void>()
         handles = (0..<size).map { index in
-            return UnnamedThread("SimpleThreadPool #\(index)")
+            return NamedThread("SimpleThreadPool #\(index)", queue: taskChannel)
         }
+        self.taskChannel = taskChannel
     }
 
     deinit {
@@ -72,11 +65,11 @@ extension SimpleThreadPool {
 
 extension SimpleThreadPool: ThreadPool {
 
-    public func async(_ body: @escaping SendableWorkItem) {
+    public func async(_ body: @escaping @Sendable () -> Void) {
         submitRandomly(body)
     }
 
-    public func submit(_ body: @escaping WorkItem) {
+    public func submit(_ body: @escaping () -> Void) {
         submitRandomly(body)
     }
 
@@ -84,23 +77,15 @@ extension SimpleThreadPool: ThreadPool {
         guard started.hasExecuted else {
             return
         }
-        handles.forEach {
-            $0.clear()
-        }
-    }
-
-    public var isBusyExecuting: Bool {
-        handles.allSatisfy {
-            $0.isBusyExecuting
-        }
+        taskChannel.clear()
     }
 
     public func pollAll() {
         guard started.hasExecuted else {
             return
         }
-        handles.forEach { [barrier] handle in
-            handle.submit {
+        (0..<handles.count).forEach { [barrier] _ in
+            taskChannel <- {
                 barrier.arriveAlone()
             }
         }

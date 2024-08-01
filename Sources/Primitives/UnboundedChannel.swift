@@ -1,4 +1,3 @@
-import Atomics
 import Foundation
 
 /// An unbounded blocking threadsafe construct for multithreaded execution context which serves
@@ -6,36 +5,14 @@ import Foundation
 ///
 /// This means that it has an infinite sized buffer for storing enqueued items
 /// in it. This also doesn't provide any form of synchronization between enqueueing and
-/// dequeuing items unlike the remaining kinds of ``Channel`` types
-@frozen
-@_eagerMove
+/// dequeuing items unlike the other kind of ``Channel`` types
+///
+/// This is a multi-producer single-consumer concurrency primitives
+/// where they are usually multiple senders and only one receiver useful for
+/// message passing
 public struct UnboundedChannel<Element> {
 
-    @usableFromInline final class _Storage<Value> {
-
-        let buffer: Buffer<Value>
-
-        var closed: Bool
-
-        var ready: Bool
-
-        init() {
-            buffer = Buffer()
-            closed = false
-            ready = false
-        }
-
-        var readyToReceive: Bool {
-            switch (ready, closed) {
-            case (true, true): return true
-            case (true, false): return true
-            case (false, true): return true
-            case (false, false): return false
-            }
-        }
-    }
-
-    let storage: _Storage<Element>
+    private let storage: MultiElementStorage<Element>
 
     let mutex: Mutex
 
@@ -43,19 +20,19 @@ public struct UnboundedChannel<Element> {
 
     /// Initializes an instance of `UnboundedChannel` type
     public init() {
-        storage = _Storage()
+        storage = MultiElementStorage()
         mutex = Mutex()
         condition = Condition()
     }
 
-    public func enqueue(_ item: Element) -> Bool {
+    public func enqueue(item: Element) -> Bool {
         return mutex.whileLocked {
             guard !storage.closed else {
                 return false
             }
-            storage.buffer.enqueue(item)
-            if !storage.ready {
-                storage.ready = true
+            storage.enqueue(item)
+            if !storage.receive {
+                storage.receive = true
             }
             condition.signal()
             return true
@@ -65,30 +42,30 @@ public struct UnboundedChannel<Element> {
     public func dequeue() -> Element? {
         mutex.whileLocked {
             guard !storage.closed else {
-                return storage.buffer.dequeue()
+                return storage.dequeue()
             }
-            condition.wait(mutex: mutex, condition: storage.readyToReceive)
-            let result = storage.buffer.dequeue()
-            if storage.buffer.isEmpty {
-                storage.ready = false
+            condition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            let result: Element? = storage.dequeue()
+            if storage.isEmpty {
+                storage.receive = false
             }
             return result
         }
     }
 
     public func clear() {
-        mutex.whileLocked { storage.buffer.clear() }
+        mutex.whileLockedVoid { storage.clear() }
     }
 
     public func close() {
-        mutex.whileLocked {
+        mutex.whileLockedVoid {
             storage.closed = true
             condition.broadcast()
         }
     }
 }
 
-extension UnboundedChannel {
+extension UnboundedChannel: IteratorProtocol, Sequence {
 
     public mutating func next() -> Element? {
         return dequeue()
@@ -105,11 +82,11 @@ extension UnboundedChannel {
     }
 
     public var length: Int {
-        return mutex.whileLocked { storage.buffer.count }
+        return mutex.whileLocked { storage.count }
     }
 
     public var isEmpty: Bool {
-        return mutex.whileLocked { storage.buffer.isEmpty }
+        return mutex.whileLocked { storage.isEmpty }
     }
 }
 

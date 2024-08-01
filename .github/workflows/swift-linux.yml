@@ -1,29 +1,25 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
 name: Linux
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["*"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["*"]
 
 jobs:
   build:
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
-        swift: ["5.8", "5.9"]
-
+        swift: ["5.5"]
+    runs-on: ${{ matrix.os }}
     steps:
-    - uses: fwal/setup-swift@v1
-      with:
-        swift-version: ${{ matrix.swift }}
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build
-    - name: Test
-      run: swift test
+      - uses: SwiftyLab/setup-swift@v1.5.2
+        with:
+          swift-version: ${{ matrix.swift }}
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build --build-tests
+      - name: Run tests
+        run: swift test

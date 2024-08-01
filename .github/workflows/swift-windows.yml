@@ -2,9 +2,9 @@ name: Windows
 
 on:
   push:
-    branches: [main]
+    branches: ["*"]
   pull_request:
-    branches: [main]
+    branches: ["*"]
 
 jobs:
   windows_test:
@@ -14,7 +14,7 @@ jobs:
       matrix:
         include:
           - os: windows-2019
-            swift_version: "5.9"
+            swift_version: "5.5"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
