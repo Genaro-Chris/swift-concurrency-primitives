@@ -54,7 +54,7 @@ extension Queue {
         this.enqueue(item: value)
     }
 
-    /// ContiguousArrayues an item from a `Queue` instance
+    /// Dequeues an item from a `Queue` instance
     public static prefix func <- (this: Queue) -> Element? {
         this.dequeue()
     }

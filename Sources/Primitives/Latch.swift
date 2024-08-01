@@ -4,8 +4,9 @@ import Foundation
 /// group of threads of known size until all threads in that group have reached the latch.
 ///
 /// This enables multiple threads to synchronize the beginning of some computation.
-/// Threads may block on the latch until the counter is decremented to zero.
-/// There is no possibility to increase or reset the counter, which makes the latch a single-use ``Barrier``.
+/// Threads may block on the latch until the counter has reached zero.
+/// 
+/// There is no possibility to reset the counter, which makes the latch a single-use ``Barrier``.
 @_spi(ThreadSync)
 public final class Latch {
 
@@ -17,7 +18,6 @@ public final class Latch {
 
     /// Initialises an instance of the `Latch` type
     /// - Parameter size: the number of threads to use
-    /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
         guard size >= 1 else {
             fatalError("Cannot initialize an instance of Latch with count of 0")
@@ -28,7 +28,7 @@ public final class Latch {
     }
 
     /// Decrements the count of the `Latch` instance and blocks the current thread
-    /// until the instance's count drops to zero
+    /// until the instance's count reaches zero
     public func decrementAndWait() {
         mutex.whileLockedVoid {
             guard blockedThreadsCount >= 1 else {
@@ -58,11 +58,12 @@ public final class Latch {
         }
     }
 
-    /// Blocks the current thread until the instance's count drops to zero
+    /// Blocks the current thread until the instance's reaches zero
     /// without decrementing
     ///
     /// # Warning
-    /// This function will deadlock if ``decrementAndWait()`` method
+    /// This function will deadlock if ``decrementAndWait()`` or ``decrementAlone``
+    /// method
     /// is called more or less than the count passed to the initializer
     public func waitForAll() {
         mutex.whileLockedVoid {

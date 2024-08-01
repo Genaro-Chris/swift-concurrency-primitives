@@ -6,7 +6,7 @@ final class TaskChannel {
 
     let condition: Condition
 
-    var buffer: ContiguousArray<WorkItem>
+    var buffer: ContiguousArray<() -> Void>
 
     var closed: Bool
 
@@ -23,14 +23,16 @@ final class TaskChannel {
         closed = false
     }
 
-    func enqueue(_ item: @escaping WorkItem) {
+    func enqueue(_ item: @escaping () -> Void) {
         mutex.whileLockedVoid {
             buffer.append(item)
-            condition.signal()
+            if buffer.count == 1 {
+                condition.signal()
+            }
         }
     }
 
-    func dequeue() -> WorkItem? {
+    func dequeue() -> (() -> Void)? {
         mutex.whileLocked {
             condition.wait(mutex: mutex, condition: !buffer.isEmpty || closed)
             guard !buffer.isEmpty else { return nil }

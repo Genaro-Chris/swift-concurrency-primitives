@@ -16,8 +16,9 @@ import Foundation
 ///
 /// let channel = OneShotChannel<Int>()
 /// DispatchQueue.global() {
-///     channel <- getIntAsync()
+///     channel <- getInt()
 /// }
+/// 
 /// // do other work
 /// if let value = <-channel {
 ///    print("Got \(value)")
@@ -25,7 +26,7 @@ import Foundation
 /// ```
 public struct OneShotChannel<Element> {
 
-    private let storage: Storage<Element>
+    private let storage: SingleItemStorage<Element>
 
     let mutex: Mutex
 
@@ -33,21 +34,21 @@ public struct OneShotChannel<Element> {
 
     /// Initializes an instance of `OneShotChannel` type
     public init() {
-        storage = Storage(nil)
+        storage = SingleItemStorage()
         mutex = Mutex()
         condition = Condition()
     }
 
     public func enqueue(item: Element) -> Bool {
         mutex.whileLocked {
-            guard !storage.ready else {
+            guard !storage.receive else {
                 return false
             }
             guard !storage.closed else {
                 return false
             }
-            storage.buffer = item
-            storage.ready = true
+            storage.value = item
+            storage.receive = true
             condition.signal()
             return true
         }
@@ -56,9 +57,9 @@ public struct OneShotChannel<Element> {
 
     public func dequeue() -> Element? {
         return mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: storage.ready || storage.closed)
-            let result: Element? = storage.buffer
-            storage.buffer = nil
+            condition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            let result: Element? = storage.value
+            storage.value = nil
             return result
         }
 
@@ -66,7 +67,7 @@ public struct OneShotChannel<Element> {
 
     public func clear() {
         mutex.whileLockedVoid {
-            storage.buffer = nil
+            storage.value = nil
         }
 
     }
@@ -97,7 +98,7 @@ extension OneShotChannel {
 
     public var length: Int {
         return mutex.whileLocked {
-            switch storage.buffer {
+            switch storage.value {
             case .none: return 0
             case .some: return 1
             }
@@ -106,7 +107,7 @@ extension OneShotChannel {
 
     public var isEmpty: Bool {
         return mutex.whileLocked {
-            switch storage.buffer {
+            switch storage.value {
             case .none: return true
             case .some: return false
             }
@@ -115,18 +116,3 @@ extension OneShotChannel {
 }
 
 extension OneShotChannel: Channel {}
-
-private final class Storage<Element> {
-
-    var buffer: Element?
-
-    var ready: Bool
-
-    var closed: Bool
-
-    init(_ value: Element? = nil) {
-        buffer = value
-        ready = false
-        closed = false
-    }
-}

@@ -5,14 +5,14 @@ import Foundation
 ///
 /// This means that it has an infinite sized buffer for storing enqueued items
 /// in it. This also doesn't provide any form of synchronization between enqueueing and
-/// dequeuing items unlike the remaining kinds of ``Channel`` types
+/// dequeuing items unlike the other kind of ``Channel`` types
 ///
 /// This is a multi-producer single-consumer concurrency primitives
 /// where they are usually multiple senders and only one receiver useful for
 /// message passing
 public struct UnboundedChannel<Element> {
 
-    private let storage: Storage<Element>
+    private let storage: MultiElementStorage<Element>
 
     let mutex: Mutex
 
@@ -20,7 +20,7 @@ public struct UnboundedChannel<Element> {
 
     /// Initializes an instance of `UnboundedChannel` type
     public init() {
-        storage = Storage()
+        storage = MultiElementStorage()
         mutex = Mutex()
         condition = Condition()
     }
@@ -31,8 +31,8 @@ public struct UnboundedChannel<Element> {
                 return false
             }
             storage.enqueue(item)
-            if !storage.ready {
-                storage.ready = true
+            if !storage.receive {
+                storage.receive = true
             }
             condition.signal()
             return true
@@ -44,10 +44,10 @@ public struct UnboundedChannel<Element> {
             guard !storage.closed else {
                 return storage.dequeue()
             }
-            condition.wait(mutex: mutex, condition: storage.ready || storage.closed)
+            condition.wait(mutex: mutex, condition: storage.receive || storage.closed)
             let result: Element? = storage.dequeue()
             if storage.isEmpty {
-                storage.ready = false
+                storage.receive = false
             }
             return result
         }
@@ -91,41 +91,3 @@ extension UnboundedChannel {
 }
 
 extension UnboundedChannel: Channel {}
-
-private final class Storage<Element> {
-
-    var buffer: ContiguousArray<Element>
-
-    var closed: Bool
-
-    var ready: Bool
-
-    var count: Int {
-        buffer.count
-    }
-
-    var isEmpty: Bool {
-        buffer.isEmpty
-    }
-
-    init() {
-        buffer = ContiguousArray()
-        closed = false
-        ready = false
-    }
-
-    func enqueue(_ item: Element) {
-        buffer.append(item)
-    }
-
-    func dequeue() -> Element? {
-        guard !buffer.isEmpty else {
-            return nil
-        }
-        return buffer.removeFirst()
-    }
-
-    func clear() {
-        buffer.removeAll()
-    }
-}

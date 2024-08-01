@@ -27,7 +27,7 @@ public final class WorkerThread {
     /// Initialises an instance of `WorkerThread` type
     /// - Parameters:
     ///   - waitType: value of `WaitType`
-    public init(waitType: WaitType) {
+    public init(waitType: WaitType = .cancelAll) {
         self.waitType = waitType
         taskChannel = TaskChannel()
         waitgroup = WaitGroup()
@@ -49,7 +49,7 @@ extension WorkerThread: ThreadPool {
         taskChannel.clear()
     }
 
-    public func submit(_ body: @escaping WorkItem) {
+    public func submit(_ body: @escaping () -> Void) {
         taskChannel.enqueue(body)
     }
 
@@ -64,8 +64,8 @@ extension WorkerThread: ThreadPool {
     }
 }
 
-func start(channel: TaskChannel) {
-    Thread { [channel] in
-        while let task = channel.dequeue() { task() }
+fileprivate func start(channel: TaskChannel) {
+    Thread { [weak channel] in
+        while let task = channel?.dequeue() { task() }
     }.start()
 }

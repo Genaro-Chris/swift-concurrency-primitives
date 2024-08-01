@@ -6,20 +6,19 @@ import Foundation
 /// An enqueue operation on an unbuffered channel is synchronized before (and thus happens
 /// before) the completion of a dequeue from that channel. A dequeue operation on an unbuffered channel
 /// is synchronized before (and thus happens before) the completion of a corresponding or next enqueue operation
-/// on that channel. In other words, if a thread enqueues a value through an unbuffered channel, the
-/// receiving thread will complete the reception of that value, and then the enqueueing thread will
-/// finish enqueueing that value.
+/// on that channel. In other words, if a thread enqueues a value into an unbuffered channel, the
+/// receiving thread must complete the reception of that value before the next enqueue operation will happen
 ///
 /// This is a multi-producer single-consumer concurrency primitives
 /// where they are usually multiple senders and only one receiver useful for
 /// message passing
 ///
 /// This means at any given time it can only contain a single item in it and any more enqueue operations on
-/// `UnbufferedChannel` with a value will block until a dequeue operation have being done
+/// `UnbufferedChannel` with a value will block until a dequeue operation have finish its execution
 @_spi(OtherChannels)
 public struct UnbufferedChannel<Element> {
 
-    private let storage: Storage<Element>
+    private let storage: SingleItemStorage<Element>
 
     let mutex: Mutex
 
@@ -29,7 +28,7 @@ public struct UnbufferedChannel<Element> {
 
     /// Initializes an instance of `UnbufferedChannel` type
     public init() {
-        storage = Storage()
+        storage = SingleItemStorage()
         mutex = Mutex()
         sendCondition = Condition()
         receiveCondition = Condition()
@@ -122,25 +121,3 @@ extension UnbufferedChannel {
 }
 
 extension UnbufferedChannel: Channel {}
-
-private final class Storage<Value> {
-
-    var value: Value?
-
-    var send: Bool
-
-    var receive: Bool
-
-    var closed: Bool
-
-    init() {
-        value = nil
-
-        send = true
-
-        receive = false
-
-        closed = false
-    }
-
-}

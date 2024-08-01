@@ -3,7 +3,7 @@ import Foundation
 
 final class NamedThread: Thread {
 
-    let queue: UnboundedChannel<WorkItem>
+    let queue: UnboundedChannel<() -> Void>
 
     let latch: Latch
 
@@ -18,7 +18,7 @@ final class NamedThread: Thread {
 
     var isBusyExecuting: Bool { isBusy.updateWhileLocked { $0 } }
 
-    init(_ name: String, queue: UnboundedChannel<WorkItem>) {
+    init(_ name: String, queue: UnboundedChannel<() -> Void>) {
         threadName = name
         isBusy = Locked(initialValue: false)
         self.queue = queue

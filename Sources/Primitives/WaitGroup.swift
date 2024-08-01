@@ -4,7 +4,11 @@ import Foundation
 ///
 /// The caller threads calls ``enter()`` a number of times to set the number of
 /// threads to wait for. Then each of the threads runs and calls ``done()`` when finished.
-///  Then, ``waitForAll()`` can be used to block until all threads have finished.
+/// 
+///  The ``waitForAll()`` method will block until all threads have finished their execution.
+/// 
+/// This is useful for threads coordination if the number of threads is not
+/// previously known 
 ///
 /// This is similar to Go's [sync.WaitGroup](https://pkg.go.dev/sync#WaitGroup)
 /// and Swift's [DispatchGroup](https://developer.apple.com/documentation/dispatch/dispatchgroup)

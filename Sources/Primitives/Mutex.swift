@@ -106,6 +106,7 @@ final class Mutex {
     ///
     /// # Warning
     /// Avoid calling long running or blocking code while using this function
+    @inlinable
     func whileLockedVoid(_ body: () throws -> Void) rethrows {
         lock()
         defer {

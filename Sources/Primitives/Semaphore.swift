@@ -3,11 +3,16 @@ import Foundation
 /// This serves as an indicator for task or thread has finished its execution
 ///
 /// This waits for a number of threads or tasks to finish.
+/// 
 /// The number of threads or tasks to be awaited are specified at initialization.
 /// Then each of the threads or tasks runs and calls ``notify()`` when finished.
+/// 
 /// The ``waitForAll()`` method is then used to block the current thread,
 /// waiting until all threads or tasks have finished.
-///
+/// 
+/// This is useful in threads coordination if the number of threads is 
+/// already known 
+/// 
 /// # Example
 /// ```swift
 /// let taskSemaphore = Semaphore(size: 3)
@@ -34,9 +39,8 @@ public final class LockSemaphore {
 
     /// Initializes a `LockSemaphore` instance with a fixed number of threads or task
     /// - Parameter size: maximum number of tasks or threads to await
-    /// - Returns: nil if the `size` argument is less than zero
     public init(size: Int) {
-        guard size >= 0 else {
+        guard size >= 1 else {
             fatalError("Cannot initialize an instance of Semaphore with count of 0")
         }
         index = size

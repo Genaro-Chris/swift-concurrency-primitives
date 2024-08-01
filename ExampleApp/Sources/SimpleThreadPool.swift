@@ -6,7 +6,7 @@ public final class SimpleThreadPool {
 
     let waitType: WaitType
 
-    let taskChannel: UnboundedChannel<WorkItem>
+    let taskChannel: UnboundedChannel<() -> Void>
 
     let handles: [NamedThread]
 
@@ -21,7 +21,7 @@ public final class SimpleThreadPool {
         handles.forEach { $0.cancel() }
     }
 
-    private func submitRandomly(_ body: @escaping WorkItem) {
+    private func submitRandomly(_ body: @escaping () -> Void) {
         started.runOnce {
             handles.forEach { $0.start() }
         }
@@ -35,7 +35,7 @@ public final class SimpleThreadPool {
         self.waitType = waitType
         barrier = Barrier(size: size + 1)
         started = OnceState()
-        let taskChannel = UnboundedChannel<WorkItem>()
+        let taskChannel = UnboundedChannel<() -> Void>()
         handles = (0..<size).map { index in
             return NamedThread("SimpleThreadPool #\(index)", queue: taskChannel)
         }
@@ -65,11 +65,11 @@ extension SimpleThreadPool {
 
 extension SimpleThreadPool: ThreadPool {
 
-    public func async(_ body: @escaping SendableWorkItem) {
+    public func async(_ body: @escaping @Sendable () -> Void) {
         submitRandomly(body)
     }
 
-    public func submit(_ body: @escaping WorkItem) {
+    public func submit(_ body: @escaping () -> Void) {
         submitRandomly(body)
     }
 

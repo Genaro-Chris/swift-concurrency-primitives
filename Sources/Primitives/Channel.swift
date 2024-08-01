@@ -27,7 +27,7 @@ public protocol Channel {
 
     /// Dequeues an item from the `Channel` instance
     ///  while blocking the current thread
-    /// - Returns: an item or nil if the `Channel` instance is closed
+    /// - Returns: an item or nil if the `Channel` instance is closed or empty
     /// that is by calling it's `close` method
     func dequeue() -> Element?
 
@@ -37,7 +37,7 @@ public protocol Channel {
     /// Closes the `Channel` instance
     /// 
     /// This unblocks both the sending and receiving operations of the `Channel` instance
-    /// thereby making the channel unusable
+    /// thereby making the channel unable to receive any more items
     func close()
 }
 

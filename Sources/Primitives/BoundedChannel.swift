@@ -12,7 +12,7 @@ import Foundation
 @_spi(OtherChannels)
 public struct BoundedChannel<Element> {
 
-    private let storage: Storage<Element>
+    private let storage: MultiElementStorage<Element>
 
     let sendCondition: Condition
 
@@ -31,12 +31,11 @@ public struct BoundedChannel<Element> {
 
     /// Initializes an instance of `BoundedChannel` type
     /// - Parameter size: maximum capacity of the channel
-    /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
         guard size >= 1 else {
             fatalError("Cannot initialize this channel with capacity less than 1")
         }
-        storage = Storage(capacity: size)
+        storage = MultiElementStorage(capacity: size)
         sendCondition = Condition()
         receiveCondition = Condition()
         mutex = Mutex()
@@ -121,50 +120,3 @@ extension BoundedChannel {
 
 extension BoundedChannel: Channel {}
 
-private final class Storage<Element> {
-
-    var buffer: ContiguousArray<Element>
-
-    let capacity: Int
-
-    var bufferCount: Int
-
-    var send: Bool
-
-    var receive: Bool
-
-    var closed: Bool
-
-    init(capacity: Int) {
-        self.capacity = capacity
-        buffer = ContiguousArray()
-        buffer.reserveCapacity(capacity)
-        send = true
-        receive = false
-        bufferCount = 0
-        closed = false
-    }
-
-    var count: Int {
-        buffer.count
-    }
-
-    var isEmpty: Bool {
-        buffer.isEmpty
-    }
-
-    func enqueue(_ item: Element) {
-        buffer.append(item)
-    }
-
-    func dequeue() -> Element? {
-        guard !buffer.isEmpty else {
-            return nil
-        }
-        return buffer.removeFirst()
-    }
-
-    func clear() {
-        buffer.removeAll()
-    }
-}

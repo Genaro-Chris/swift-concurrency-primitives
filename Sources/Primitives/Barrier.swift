@@ -1,6 +1,6 @@
 import Foundation
 
-/// This provides a thread-coordination mechanism that blocks a group of threads of known length until all threads
+/// This provides a thread-coordination mechanism that blocks a group of a fixed number of threads until all threads
 /// in that group have reached the barrier.
 ///
 /// This enables multiple threads to synchronize the beginning of some computation.
@@ -18,11 +18,10 @@ public final class Barrier {
     let threadsCount: Int
 
     // Flag to differentiate barrier generations (avoid race conditions)
-    var generation: Int
+    var generation: FlagStage
 
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
-    /// - Returns: nil if the `size` argument is less than one
     public init(size: Int) {
         guard size >= 1 else {
             fatalError("Cannot initialize an instance of Barrier with a size less than 1")
@@ -31,7 +30,7 @@ public final class Barrier {
         mutex = Mutex()
         blockedThreadsCount = 0
         threadsCount = size
-        generation = 0
+        generation = .wait
     }
 
     /// Increments the count of an `Barrier` instance without blocking the current thread
@@ -42,24 +41,41 @@ public final class Barrier {
                 return
             }
             blockedThreadsCount = 0
-            generation += 1
+            generation.toggle()
             condition.broadcast()
         }
     }
 
     /// Increments the count of the `Barrier` instance and
-    /// blocks the current thread until all the threads has arrived at the barrier
+    /// blocks the current thread until all the other threads has arrived at the barrier
     public func arriveAndWait() {
         mutex.whileLockedVoid {
-            let currentGeneration: Int = generation
+            let currentGeneration = generation
             blockedThreadsCount += 1
             guard blockedThreadsCount != threadsCount else {
                 blockedThreadsCount = 0
-                generation += 1
+                generation.toggle()
                 condition.broadcast()
                 return
             }
             condition.wait(mutex: mutex, until: currentGeneration == generation)
+        }
+    }
+}
+
+/// Signifies a barrier generation state
+///
+/// This is more efficient than using Int type for barrier generation
+enum FlagStage: Equatable {
+
+    case wait, inProgress
+
+    mutating func toggle() {
+        switch self {
+        case .wait:
+            self = .inProgress
+        case .inProgress:
+            self = .wait
         }
     }
 }

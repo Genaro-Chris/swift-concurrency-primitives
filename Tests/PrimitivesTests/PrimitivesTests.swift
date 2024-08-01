@@ -33,7 +33,7 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(queue, 55)
     }
 
-    func test_LatchDecrementAlone() {
+    func test_Latch_DecrementAlone() {
         var queue = 0
         let latch = Latch(size: 11)
         let lock = Lock()
@@ -73,7 +73,7 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(total, 10)
     }
 
-    func test_BarrierDecrementAlone() {
+    func test_Barrier_DecrementAlone() {
         let barrier = Barrier(size: 5)
         let lock = Lock()
         var total = 0
@@ -100,7 +100,7 @@ final class PrimitivesTests: XCTestCase {
         XCTAssertEqual(total, 10)
     }
 
-    func test_ConditionSignal() {
+    func test_Condition_Signal() {
         let condition = Condition()
         let lock = Mutex()
         var total = 0
@@ -124,7 +124,7 @@ final class PrimitivesTests: XCTestCase {
         }
     }
 
-    func test_ConditionBroadcast() {
+    func test_Condition_Broadcast() {
         let condition = Condition()
         let lock = Mutex()
         var total = 0
@@ -148,7 +148,7 @@ final class PrimitivesTests: XCTestCase {
         }
     }
 
-    func test_Condition_SleepWithBroadcast() {
+    func test_Condition_Wait() {
         let condition = Condition()
         let lock = Mutex()
         let total = 0

@@ -130,7 +130,7 @@ final class Condition {
     /// Blocks the current thread until the condition becomes false
     /// - Parameters:
     ///   - mutex: The mutex which this function tries to acquire and lock
-    ///   - condition: The condition which is true that must later become false
+    ///   - until: The condition which is true that must later become false
     func wait(mutex: Mutex, until body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
@@ -219,9 +219,6 @@ final class Condition {
                 tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
                 tv_nsec: allNanoSecs % nsecsPerSec)
 
-            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
-            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
-
         #elseif os(Linux) || canImport(Musl) || canImport(Glibc)
 
             // get the current time
@@ -237,10 +234,10 @@ final class Condition {
                 tv_nsec: allNanoSecs % nsecsPerSec
             )
 
-            assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
-            assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
-
         #endif
+
+        assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
+        assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
 
         return timeoutAbs
     }
