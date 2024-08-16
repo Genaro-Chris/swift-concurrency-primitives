@@ -1,6 +1,6 @@
 import Foundation
 
-/// A collection of fixed size of pre-started, idle worker threads that is ready to execute 
+/// A collection of fixed size of pre-started, idle worker threads that is ready to execute
 /// code asynchronously, executing code concurrently between all threads.
 ///
 /// It is very similar to Swift's [DispatchQueue](https://developer.apple.com/documentation/dispatch/dispatchqueue)
@@ -24,13 +24,15 @@ public final class WorkerPool {
 
     let waitType: WaitType
 
-    /// Initializes an instance of the `WorkerPool` type
+    static let shared: WorkerPool = WorkerPool(size: ProcessInfo.processInfo.activeProcessorCount)
+
+    /// Initialises an instance of the `WorkerPool` type
     /// - Parameters:
     ///   - size: Number of threads to used in the pool
     ///   - waitType: value of `WaitType`
     public init(size: Int, waitType: WaitType = .cancelAll) {
         guard size >= 1 else {
-            fatalError("Cannot initialize an instance of WorkerPool with 0 Threads")
+            fatalError("Cannot initialise an instance of WorkerPool with 0 Threads")
         }
         self.waitType = waitType
         waitGroup = WaitGroup()
@@ -45,9 +47,9 @@ public final class WorkerPool {
         taskChannels.forEach { $0.end() }
     }
 
-    /// This enqueues a block of code to be executed by a specific thread in the 
-    /// ``WorkerPool`` type
-    /// 
+    /// This enqueues a block of code to be executed by a specific thread in the
+    /// ``WorkerPool`` instance
+    ///
     /// - Parameters:
     ///   - index: The position of the thread to enqueue the closure
     ///   - body: a non-throwing sendable closure that takes nothing and returns void
@@ -74,8 +76,9 @@ extension WorkerPool {
 
     /// This represents a global multi-threaded pool similar to `DispatchQueue.global()`
     /// as it contains the same number of Threads as the total number of processor count
-    public static let globalPool: WorkerPool = WorkerPool(
-        size: ProcessInfo.processInfo.activeProcessorCount, waitType: .cancelAll)
+    public static var globalPool: WorkerPool {
+        WorkerPool.shared
+    }
 }
 
 extension WorkerPool: ThreadPool {
@@ -101,11 +104,11 @@ extension WorkerPool: ThreadPool {
     }
 }
 
-fileprivate func start(size: Int) -> [TaskChannel] {
+private func start(size: Int) -> [TaskChannel] {
     (0..<size).map { _ in
         let channel: TaskChannel = TaskChannel()
-        Thread { [weak channel] in
-            while let ops = channel?.dequeue() { ops() }
+        Thread { [channel] in
+            while let task = channel.dequeue() { task() }
         }.start()
         return channel
     }

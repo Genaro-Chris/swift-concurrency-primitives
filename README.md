@@ -56,7 +56,7 @@ This package even provide some constructs for co-ordination for threads by waiti
 
 - [LockSemaphore](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/locksemaphore)
 - [WaitGroup](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/waitgroup)
-
+- [ThreadParker](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/threadparker)
 
 ### Message Passing 
 
@@ -80,11 +80,11 @@ A synchronization primitive which provides a way of executing code exactly once 
 - [Once](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/once)
 - [OnceState](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation/primitives/oncestate)
 
-And many more others
+And many more others, or to be added 
 
 ## Documentation
 
-The full API documentation can be accessed [here](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation)
+The API documentation can also be accessed [here](https://swiftpackageindex.com/Genaro-Chris/swift-concurrency-primitives/main/documentation)
 
 ## ExampleUsage
 

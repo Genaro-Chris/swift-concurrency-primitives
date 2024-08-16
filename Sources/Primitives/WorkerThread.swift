@@ -64,8 +64,8 @@ extension WorkerThread: ThreadPool {
     }
 }
 
-fileprivate func start(channel: TaskChannel) {
-    Thread { [weak channel] in
-        while let task = channel?.dequeue() { task() }
+private func start(channel: TaskChannel) {
+    Thread { [channel] in
+        while let task = channel.dequeue() { task() }
     }.start()
 }

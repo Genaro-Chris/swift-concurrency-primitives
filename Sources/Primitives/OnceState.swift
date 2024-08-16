@@ -2,7 +2,7 @@
 ///  per instance
 ///
 /// This is particularly useful for secondary initialization in classes ensuring that the property is
-/// fully initialized once no matter times or where it is was called including also concurrent code
+/// fully initialised once no matter times or where it is was called including also concurrent code
 ///
 /// # Example
 ///

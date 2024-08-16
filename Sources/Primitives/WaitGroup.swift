@@ -4,11 +4,11 @@ import Foundation
 ///
 /// The caller threads calls ``enter()`` a number of times to set the number of
 /// threads to wait for. Then each of the threads runs and calls ``done()`` when finished.
-/// 
+///
 ///  The ``waitForAll()`` method will block until all threads have finished their execution.
-/// 
+///
 /// This is useful for threads coordination if the number of threads is not
-/// previously known 
+/// previously known
 ///
 /// This is similar to Go's [sync.WaitGroup](https://pkg.go.dev/sync#WaitGroup)
 /// and Swift's [DispatchGroup](https://developer.apple.com/documentation/dispatch/dispatchgroup)
@@ -28,25 +28,19 @@ import Foundation
 /// }
 /// waitGroup.waitForAll()
 /// ```
-public final class WaitGroup {
+public struct WaitGroup {
 
-    let mutex: Mutex
+    let indexLock: ConditionalLockBuffer<Int>
 
-    let condition: Condition
-
-    var index: Int
-
-    /// Initializes a `WaitGroup` instance
+    /// Initialises a `WaitGroup` instance
     public init() {
-        index = 0
-        mutex = Mutex()
-        condition = Condition()
+        indexLock = ConditionalLockBuffer.create(value: 0)
     }
 
     /// This indicates that a new thread is about to start.
     /// This should be called only outside the thread doing the work.
     public func enter() {
-        mutex.whileLockedVoid {
+        indexLock.interactWhileLocked { index, conditionLock in
             index += 1
         }
     }
@@ -54,22 +48,22 @@ public final class WaitGroup {
     /// Indicates that it is done executing this thread.
     /// This should be called only in the thread doing the work.
     public func done() {
-        mutex.whileLockedVoid {
+        indexLock.interactWhileLocked { index, conditionLock in
             guard index >= 1 else { return }
             index -= 1
             if index == 0 {
-                condition.broadcast()
+                conditionLock.broadcast()
             }
         }
     }
 
     /// Blocks until there is no more thread running
     ///
-    /// This method no blocks the current thread execution only if one or more
-    /// calls to the `enter` method
+    /// This method blocks the current thread execution only if one or more
+    /// calls to the `enter` method until the same number of calls as been made to the ``done`` method
     public func waitForAll() {
-        mutex.whileLockedVoid {
-            condition.wait(mutex: mutex, condition: index == 0)
+        indexLock.interactWhileLocked { index, conditionLock in
+            conditionLock.wait(for: index == 0)
         }
     }
 }

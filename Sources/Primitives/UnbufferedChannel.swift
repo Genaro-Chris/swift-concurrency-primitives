@@ -26,7 +26,7 @@ public struct UnbufferedChannel<Element> {
 
     let receiveCondition: Condition
 
-    /// Initializes an instance of `UnbufferedChannel` type
+    /// Initialises an instance of `UnbufferedChannel` type
     public init() {
         storage = SingleItemStorage()
         mutex = Mutex()
@@ -39,7 +39,7 @@ public struct UnbufferedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            sendCondition.wait(mutex: mutex, condition: storage.send || storage.closed)
+            sendCondition.wait(mutex: mutex, for: storage.send || storage.closed)
             guard !storage.closed else {
                 return false
             }
@@ -58,7 +58,7 @@ public struct UnbufferedChannel<Element> {
                 storage.value = nil
                 return result
             }
-            receiveCondition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            receiveCondition.wait(mutex: mutex, for: storage.receive || storage.closed)
             let result: Element? = storage.value
             storage.value = nil
             if !storage.closed {
@@ -71,14 +71,14 @@ public struct UnbufferedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLockedVoid {
+        mutex.whileLocked {
             storage.value = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLockedVoid {
+        mutex.whileLocked {
             storage.closed = true
             sendCondition.broadcast()
             receiveCondition.broadcast()

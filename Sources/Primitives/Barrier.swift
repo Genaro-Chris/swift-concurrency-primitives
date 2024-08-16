@@ -7,75 +7,73 @@ import Foundation
 /// This is similar to the ``Latch`` type with a major difference of `Barrier` types been reusable:
 /// once a group of arriving threads are unblocked, the barrier can be reused
 @_spi(ThreadSync)
-public final class Barrier {
+public struct Barrier {
 
-    let condition: Condition
-
-    let mutex: Mutex
-
-    var blockedThreadsCount: Int
+    let blockedThreadsLock: ConditionalLockBuffer<InnerState>
 
     let threadsCount: Int
-
-    // Flag to differentiate barrier generations (avoid race conditions)
-    var generation: FlagStage
 
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
     public init(size: Int) {
         guard size >= 1 else {
-            fatalError("Cannot initialize an instance of Barrier with a size less than 1")
+            fatalError("Cannot initialise an instance of Barrier with a size less than 1")
         }
-        condition = Condition()
-        mutex = Mutex()
-        blockedThreadsCount = 0
         threadsCount = size
-        generation = .wait
+        blockedThreadsLock = ConditionalLockBuffer.create(value: InnerState())
     }
 
     /// Increments the count of an `Barrier` instance without blocking the current thread
     public func arriveAlone() {
-        mutex.whileLockedVoid {
-            blockedThreadsCount += 1
-            guard blockedThreadsCount == threadsCount else {
+        blockedThreadsLock.interactWhileLocked { inner, conditionLock in
+            inner.incrementCounter()
+            guard inner.counter == threadsCount else {
                 return
             }
-            blockedThreadsCount = 0
-            generation.toggle()
-            condition.broadcast()
+            inner.resetCounter()
+            inner.changeState()
+            conditionLock.broadcast()
         }
     }
 
     /// Increments the count of the `Barrier` instance and
     /// blocks the current thread until all the other threads has arrived at the barrier
     public func arriveAndWait() {
-        mutex.whileLockedVoid {
-            let currentGeneration = generation
-            blockedThreadsCount += 1
-            guard blockedThreadsCount != threadsCount else {
-                blockedThreadsCount = 0
-                generation.toggle()
-                condition.broadcast()
+        blockedThreadsLock.interactWhileLocked { inner, conditionLock in
+            let currentGeneration: Int = inner.generation
+            inner.incrementCounter()
+            guard inner.counter == threadsCount else {
+                conditionLock.wait(until: currentGeneration == inner.generation)
                 return
             }
-            condition.wait(mutex: mutex, until: currentGeneration == generation)
+            inner.resetCounter()
+            inner.changeState()
+            conditionLock.broadcast()
         }
     }
 }
 
-/// Signifies a barrier generation state
-///
-/// This is more efficient than using Int type for barrier generation
-enum FlagStage: Equatable {
+struct InnerState {
 
-    case wait, inProgress
+    private(set) var counter: Int
 
-    mutating func toggle() {
-        switch self {
-        case .wait:
-            self = .inProgress
-        case .inProgress:
-            self = .wait
-        }
+    // Flag to differentiate barrier generations (avoid race conditions)
+    private(set) var generation: Int
+
+    init() {
+        counter = 0
+        generation = 0
+    }
+
+    mutating func incrementCounter() {
+        counter += 1
+    }
+
+    mutating func resetCounter() {
+        counter = 0
+    }
+
+    mutating func changeState() {
+        generation += 1
     }
 }

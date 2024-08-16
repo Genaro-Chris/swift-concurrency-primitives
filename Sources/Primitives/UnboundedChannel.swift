@@ -12,21 +12,15 @@ import Foundation
 /// message passing
 public struct UnboundedChannel<Element> {
 
-    private let storage: MultiElementStorage<Element>
+    let storageLock: ConditionalLockBuffer<MultiElementStorage<Element>>
 
-    let mutex: Mutex
-
-    let condition: Condition
-
-    /// Initializes an instance of `UnboundedChannel` type
+    /// Initialises an instance of `UnboundedChannel` type
     public init() {
-        storage = MultiElementStorage()
-        mutex = Mutex()
-        condition = Condition()
+        storageLock = ConditionalLockBuffer.create(value: MultiElementStorage(capacity: 0))
     }
 
     public func enqueue(item: Element) -> Bool {
-        return mutex.whileLocked {
+        return storageLock.interactWhileLocked { storage, conditionLock in
             guard !storage.closed else {
                 return false
             }
@@ -34,17 +28,17 @@ public struct UnboundedChannel<Element> {
             if !storage.receive {
                 storage.receive = true
             }
-            condition.signal()
+            conditionLock.signal()
             return true
         }
     }
 
     public func dequeue() -> Element? {
-        mutex.whileLocked {
+        storageLock.interactWhileLocked { storage, conditionLock in
             guard !storage.closed else {
                 return storage.dequeue()
             }
-            condition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            conditionLock.wait(for: storage.receive || storage.closed)
             let result: Element? = storage.dequeue()
             if storage.isEmpty {
                 storage.receive = false
@@ -54,13 +48,13 @@ public struct UnboundedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLockedVoid { storage.clear() }
+        storageLock.interactWhileLocked { storage, _ in storage.clear() }
     }
 
     public func close() {
-        mutex.whileLockedVoid {
+        storageLock.interactWhileLocked { storage, conditionLock in
             storage.closed = true
-            condition.broadcast()
+            conditionLock.broadcast()
         }
     }
 }
@@ -76,17 +70,17 @@ extension UnboundedChannel: IteratorProtocol, Sequence {
 extension UnboundedChannel {
 
     public var isClosed: Bool {
-        return mutex.whileLocked {
+        return storageLock.interactWhileLocked { storage, _ in
             storage.closed
         }
     }
 
     public var length: Int {
-        return mutex.whileLocked { storage.count }
+        return storageLock.interactWhileLocked { storage, _ in storage.count }
     }
 
     public var isEmpty: Bool {
-        return mutex.whileLocked { storage.isEmpty }
+        return storageLock.interactWhileLocked { storage, _ in storage.isEmpty }
     }
 }
 

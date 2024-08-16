@@ -7,7 +7,7 @@
 /// The data can be accessed through in the following ways:
 /// - the ``updateWhileLocked(_:)`` which guarantees that the data is only ever accessed when the lock is acquired
 /// - the inner type instance properties through dynamic member lookup
-/// 
+///
 /// This `Locked` type is also a property wrapper which means it can be created
 /// easily and it provides a projected value which can be easily
 /// used to update the value.
@@ -59,30 +59,31 @@
 ///
 @propertyWrapper
 @dynamicMemberLookup
-public final class Locked<Element> {
+public struct Locked<Element>: @unchecked Sendable {
 
-    let lock: Lock
-
-    var value: Element
+    let valueLock: LockBuffer<Element>
 
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
         get {
-            return lock.whileLocked { value }
+            return updateWhileLocked { value in
+                value
+            }
         }
         set {
-            lock.whileLockedVoid { value = newValue }
+            updateWhileLocked { value in
+                value = newValue
+            }
         }
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
     public init(initialValue: Element) {
-        lock = Lock()
-        value = initialValue
+        valueLock = LockBuffer.create(value: initialValue)
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
-    convenience public init(wrappedValue value: Element) {
+    public init(wrappedValue value: Element) {
         self.init(initialValue: value)
     }
 
@@ -99,20 +100,7 @@ public final class Locked<Element> {
     /// # Warning
     /// Avoid calling long running or blocking code while using this function
     public func updateWhileLocked<T>(_ mutateWith: (inout Element) throws -> T) rethrows -> T {
-        return try lock.whileLocked {
-            return try mutateWith(&value)
-        }
-    }
-
-    /// This function will block the current thread until it acquires the lock.
-    /// Upon acquiring the lock, only this thread can access or update the value stored in this type.
-    /// - Parameter using: a closure that updates or changes the value stored in this type
-    /// - Returns: value returned from the closure passed as argument
-    ///
-    /// # Warning
-    /// Avoid calling long running or blocking code while using this function
-    public func updateWhileLocked(_ mutateWith: (inout Element) throws -> Void) rethrows -> Void {
-        return try lock.whileLocked {
+        return try valueLock.interactWhileLocked { value, _ in
             return try mutateWith(&value)
         }
     }

@@ -53,19 +53,11 @@ import Foundation
 ///
 public struct Lock {
 
-    #if canImport(Darwin)
-        let lock: DarwinLock
-    #else
-        let lock: Mutex
-    #endif
+    let lock: Mutex
 
     /// Initialises an instance of the `Lock` type
     public init() {
-        #if canImport(Darwin)
-            lock = DarwinLock()
-        #else
-            lock = Mutex()
-        #endif
+        lock = Mutex()
     }
 
     /// Tries to acquire the lock for the duration for the closure passed as
@@ -81,15 +73,4 @@ public struct Lock {
         return try lock.whileLocked(body)
     }
 
-    /// Tries to acquire the lock for the duration for the closure passed as
-    /// argument and releases the lock immediately after the closure has finished
-    /// its execution regardless of how it finishes
-    ///
-    /// - Parameter body: closure to be executed while being protected by the lock
-    ///
-    /// # Warning
-    /// Avoid calling long running or blocking code while using this function
-    public func whileLockedVoid(_ body: () throws -> Void) rethrows {
-        try lock.whileLockedVoid(body)
-    }
 }

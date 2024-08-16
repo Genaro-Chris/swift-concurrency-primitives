@@ -63,7 +63,7 @@ final class ChannelTests: XCTestCase {
     }
 
     func test_UnboundedChannel() {
-        let channel = UnboundedChannel<String>.init()
+        let channel = UnboundedChannel<String>()
         let expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map { String($0) }
         let pool = WorkerPool(size: 4, waitType: .cancelAll)
         (0...9).forEach { index in

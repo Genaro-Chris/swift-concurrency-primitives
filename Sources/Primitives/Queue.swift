@@ -19,31 +19,28 @@
 /// ```
 public struct Queue<Element> {
 
-    private let storage: Storage<Element>
+    private let storageLock: LockBuffer<Storage<Element>>
 
-    let lock: Lock
-
-    /// Initializes an instance of the `Queue` type
+    /// Initialises an instance of the `Queue` type
     public init() {
-        storage = Storage()
-        lock = Lock()
+        storageLock = LockBuffer.create(value: Storage())
     }
 
     /// Enqueue an item into the queue
     /// - Parameter item: item to be enqueued
     public func enqueue(item: Element) {
-        lock.whileLockedVoid { storage.enqueue(item) }
+        storageLock.interactWhileLocked { storage, _ in storage.enqueue(item) }
     }
 
     /// ContiguousArrayues an item from the queue
     /// - Returns: an item or nil if the queue is empty
     public func dequeue() -> Element? {
-        return lock.whileLocked { storage.dequeue() }
+        return storageLock.interactWhileLocked { storage, _ in storage.dequeue() }
     }
 
     /// Clears the remaining enqueued items
     public func clear() {
-        lock.whileLockedVoid { storage.clear() }
+        storageLock.interactWhileLocked { storage, _ in storage.clear() }
     }
 }
 
@@ -61,43 +58,11 @@ extension Queue {
 
     /// Number of items in the `Queue` instance
     public var length: Int {
-        return lock.whileLocked { storage.count }
+        return storageLock.interactWhileLocked { storage, _ in storage.count }
     }
 
     /// Indicates if `Queue` instance is empty or not
     public var isEmpty: Bool {
-        return lock.whileLocked { storage.isEmpty }
-    }
-}
-
-private final class Storage<Element> {
-
-    var buffer: ContiguousArray<Element>
-
-    init() {
-        buffer = ContiguousArray()
-    }
-
-    var count: Int {
-        buffer.count
-    }
-
-    var isEmpty: Bool {
-        buffer.isEmpty
-    }
-
-    func enqueue(_ item: Element) {
-        buffer.append(item)
-    }
-
-    func dequeue() -> Element? {
-        guard !buffer.isEmpty else {
-            return nil
-        }
-        return buffer.removeFirst()
-    }
-
-    func clear() {
-        buffer.removeAll()
+        return storageLock.interactWhileLocked { storage, _ in storage.isEmpty }
     }
 }

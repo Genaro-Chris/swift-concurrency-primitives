@@ -18,7 +18,7 @@ import Foundation
 /// DispatchQueue.global() {
 ///     channel <- getInt()
 /// }
-/// 
+///
 /// // do other work
 /// if let value = <-channel {
 ///    print("Got \(value)")
@@ -26,21 +26,15 @@ import Foundation
 /// ```
 public struct OneShotChannel<Element> {
 
-    private let storage: SingleItemStorage<Element>
+    private let storageLock: ConditionalLockBuffer<SingleItemStorage<Element>>
 
-    let mutex: Mutex
-
-    let condition: Condition
-
-    /// Initializes an instance of `OneShotChannel` type
+    /// Initialises an instance of `OneShotChannel` type
     public init() {
-        storage = SingleItemStorage()
-        mutex = Mutex()
-        condition = Condition()
+        storageLock = ConditionalLockBuffer.create(value: SingleItemStorage())
     }
 
     public func enqueue(item: Element) -> Bool {
-        mutex.whileLocked {
+        storageLock.interactWhileLocked { storage, conditionLock in
             guard !storage.receive else {
                 return false
             }
@@ -49,15 +43,15 @@ public struct OneShotChannel<Element> {
             }
             storage.value = item
             storage.receive = true
-            condition.signal()
+            conditionLock.signal()
             return true
         }
 
     }
 
     public func dequeue() -> Element? {
-        return mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+        return storageLock.interactWhileLocked { storage, conditionLock in
+            conditionLock.wait(for: storage.receive || storage.closed)
             let result: Element? = storage.value
             storage.value = nil
             return result
@@ -66,19 +60,19 @@ public struct OneShotChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLockedVoid {
+        storageLock.interactWhileLocked { storage, _ in
             storage.value = nil
         }
 
     }
 
     public func close() {
-        mutex.whileLockedVoid {
+        storageLock.interactWhileLocked { storage, conditionLock in
             guard !storage.closed else {
                 return
             }
             storage.closed = true
-            condition.broadcast()
+            conditionLock.broadcast()
         }
     }
 }
@@ -93,11 +87,11 @@ extension OneShotChannel: IteratorProtocol, Sequence {
 extension OneShotChannel {
 
     public var isClosed: Bool {
-        return mutex.whileLocked { storage.closed }
+        return storageLock.interactWhileLocked { storage, _ in storage.closed }
     }
 
     public var length: Int {
-        return mutex.whileLocked {
+        return storageLock.interactWhileLocked { storage, _ in
             switch storage.value {
             case .none: return 0
             case .some: return 1
@@ -106,7 +100,7 @@ extension OneShotChannel {
     }
 
     public var isEmpty: Bool {
-        return mutex.whileLocked {
+        return storageLock.interactWhileLocked { storage, _ in
             switch storage.value {
             case .none: return true
             case .some: return false

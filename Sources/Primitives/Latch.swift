@@ -5,55 +5,44 @@ import Foundation
 ///
 /// This enables multiple threads to synchronize the beginning of some computation.
 /// Threads may block on the latch until the counter has reached zero.
-/// 
+///
 /// There is no possibility to reset the counter, which makes the latch a single-use ``Barrier``.
 @_spi(ThreadSync)
-public final class Latch {
+public struct Latch {
 
-    let condition: Condition
-
-    let mutex: Mutex
-
-    var blockedThreadsCount: Int
+    let blockedThreadsLock: ConditionalLockBuffer<Int>
 
     /// Initialises an instance of the `Latch` type
     /// - Parameter size: the number of threads to use
     public init(size: Int) {
         guard size >= 1 else {
-            fatalError("Cannot initialize an instance of Latch with count of 0")
+            fatalError("Cannot initialise an instance of Latch with count of 0")
         }
-        blockedThreadsCount = size
-        condition = Condition()
-        mutex = Mutex()
+        blockedThreadsLock = ConditionalLockBuffer.create(value: size)
     }
 
     /// Decrements the count of the `Latch` instance and blocks the current thread
     /// until the instance's count reaches zero
     public func decrementAndWait() {
-        mutex.whileLockedVoid {
-            guard blockedThreadsCount >= 1 else {
+        blockedThreadsLock.interactWhileLocked { index, conditionLock in
+            guard index >= 1 else { return }
+            index -= 1
+            guard index != 0 else {
+                conditionLock.broadcast()
                 return
             }
-            blockedThreadsCount -= 1
-            guard blockedThreadsCount != 0 else {
-                condition.broadcast()
-                return
-            }
-            condition.wait(mutex: mutex, condition: blockedThreadsCount == 0)
+            conditionLock.wait(for: index == 0)
         }
     }
 
     /// Decrements the count of an `Latch` instance
     /// without blocking the current thread
     public func decrementAlone() {
-        mutex.whileLockedVoid {
-            guard blockedThreadsCount >= 1 else {
-                return
-            }
-            blockedThreadsCount -= 1
-            guard blockedThreadsCount != 0 else {
-                condition.broadcast()
-                return
+        blockedThreadsLock.interactWhileLocked { index, conditionLock in
+            guard index >= 1 else { return }
+            index -= 1
+            if index == 0 {
+                conditionLock.broadcast()
             }
         }
     }
@@ -66,8 +55,8 @@ public final class Latch {
     /// method
     /// is called more or less than the count passed to the initializer
     public func waitForAll() {
-        mutex.whileLockedVoid {
-            condition.wait(mutex: mutex, condition: blockedThreadsCount == 0)
+        blockedThreadsLock.interactWhileLocked { index, conditionLock in
+            conditionLock.wait(for: index == 0)
         }
     }
 }

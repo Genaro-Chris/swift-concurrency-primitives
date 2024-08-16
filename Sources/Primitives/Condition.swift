@@ -11,6 +11,12 @@
     #error("Unable to identify your underlying C library.")
 #endif
 
+#if os(Windows)
+    typealias ConditionType = CONDITION_VARIABLE
+#else
+    typealias ConditionType = pthread_cond_t
+#endif
+
 /// A Condition Variable type
 ///
 /// Condition variables provides the ability to block a thread in such a way that
@@ -31,13 +37,9 @@
 /// an undefined behaviour at runtime
 final class Condition {
 
-    #if os(Windows)
-        let condition: UnsafeMutablePointer<CONDITION_VARIABLE>
-    #else
-        let condition: UnsafeMutablePointer<pthread_cond_t>
-    #endif
+    let condition: UnsafeMutablePointer<ConditionType>
 
-    /// Initializes an instance of `Condition` type
+    /// Initialises an instance of `Condition` type
     init() {
         condition = UnsafeMutablePointer.allocate(capacity: 1)
         #if os(Windows)
@@ -47,7 +49,7 @@ final class Condition {
             var conditionAttr: pthread_condattr_t = pthread_condattr_t()
             pthread_condattr_init(&conditionAttr)
             let err: Int32 = pthread_cond_init(condition, &conditionAttr)
-            precondition(err == 0, "Couldn't initialize pthread_cond due to \(err)")
+            precondition(err == 0, "Couldn't initialise pthread_cond due to \(err)")
         #endif
 
     }
@@ -60,15 +62,15 @@ final class Condition {
         condition.deallocate()
     }
 
-    /// Blocks the current thread until a specified time interval is reached
+    /// Blocks the current thread until a specified time duration passes
     /// - Parameters:
-    ///   - mutex: The mutex which this function tries to acquire and lock
-    ///   - forTimeInterval: The number of seconds to wait to acquire
-    ///     the lock before giving up.
+    ///   - mutex: mutex which this function tries to acquire and lock
+    ///   - timeout: time duration to hold the mutex for
     /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
     func wait(mutex: Mutex, timeout: TimeDuration) -> Bool {
         precondition(
-            timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
+            timeout.timeInNano >= 0,
+            "time passed in as argument must be greater than or equal to zero")
 
         // ensure that the mutex is already locked
         precondition(
@@ -95,20 +97,82 @@ final class Condition {
 
             var timeoutAbs: timespec = getTimeSpec(with: timeout)
 
-            // wait until the time passed as argument as elapsed
-            switch pthread_cond_timedwait(condition, mutex.mutex, &timeoutAbs) {
-            case 0: return true
-            case ETIMEDOUT: return false
-            case let err: fatalError("caught error \(err) while calling pthread_cond_timedwait")
+            while true {
+                // wait until the time passed as argument as elapsed
+                switch pthread_cond_timedwait(condition, mutex.mutex, &timeoutAbs) {
+                case 0: continue
+                case ETIMEDOUT: return false
+                case let err: fatalError("caught error \(err) while calling pthread_cond_timedwait")
+                }
             }
+            return true
+        #endif
+    }
+
+    /// Blocks the current thread until a specified time duration passes or the condition
+    /// becomes true
+    /// - Parameters:
+    ///   - mutex: mutex which this function tries to acquire and lock
+    ///   - for: condition which is false that must later become true
+    ///   - timeout: time duration to hold the mutex for
+    /// - Returns: `true` if the lock was acquired, `false` if the wait timed out.
+    func wait(mutex: Mutex, for body: @autoclosure @escaping () -> Bool, timeout: TimeDuration)
+        -> Bool
+    {
+        precondition(
+            timeout.timeInNano >= 0, "time passed in as argument must be greater than zero")
+
+        // ensure that the mutex is already locked
+        precondition(
+            !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
+
+        #if os(Windows)
+
+            var dwMilliseconds: DWORD = DWORD(timeout.timeInMilli)
+            while true {
+                if body() {
+                    return true
+                }
+                let dwWaitStart: DWORD = timeGetTime()
+                if !SleepConditionVariableSRW(condition, mutex.mutex, dwMilliseconds, 0) {
+                    let dwError = GetLastError()
+                    if dwError == ERROR_TIMEOUT {
+                        return false
+                    }
+                    fatalError("SleepConditionVariableSRW: \(dwError)")
+                }
+
+                // NOTE: this may be a spurious wakeup, adjust the timeout accordingly
+                dwMilliseconds -= (timeGetTime() - dwWaitStart)
+                if dwMilliseconds == 0 { return true }
+            }
+        #else
+
+            var timeoutAbs: timespec = getTimeSpec(with: timeout)
+
+            while true {
+                if body() {
+                    return true
+                }
+                // wait until the time passed as argument as elapsed
+                switch pthread_cond_timedwait(condition, mutex.mutex, &timeoutAbs) {
+                case 0: continue
+                case ETIMEDOUT: return false
+                case let err: fatalError("caught error \(err) while calling pthread_cond_timedwait")
+                }
+            }
+
         #endif
     }
 
     /// Blocks the current thread until the condition becomes true
     /// - Parameters:
-    ///   - mutex: The mutex which this function tries to acquire and lock
-    ///   - condition: The condition which is false that must later become true
-    func wait(mutex: Mutex, condition body: @autoclosure () -> Bool) {
+    ///   - mutex: mutex which this function tries to acquire and lock
+    ///   - for: condition which is false that must later become true
+    ///
+    /// Always ensure that when the condition changes, it is followed by either
+    /// ``broadcast`` or ``signal`` method
+    func wait(mutex: Mutex, for body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
             !mutex.tryLock(), "\(#function) must be called only while the mutex is locked")
@@ -129,8 +193,11 @@ final class Condition {
 
     /// Blocks the current thread until the condition becomes false
     /// - Parameters:
-    ///   - mutex: The mutex which this function tries to acquire and lock
-    ///   - until: The condition which is true that must later become false
+    ///   - mutex: mutex which this function tries to acquire and lock
+    ///   - until: condition which is true that must later become false
+    ///
+    /// Always ensure that when the condition changes, it is followed by either
+    /// ``broadcast`` or ``signal`` method
     func wait(mutex: Mutex, until body: @autoclosure () -> Bool) {
         // ensure that the mutex is already locked
         precondition(
@@ -150,8 +217,8 @@ final class Condition {
         }
     }
 
-    /// Blocks the current thread
-    /// - Parameter mutex: The mutex which this function tries to acquire and lock until a signal or broadcast is made
+    /// Blocks the current thread until a signal or broadcast is made
+    /// - Parameter mutex: mutex which this function tries to acquire and lock
     func wait(mutex: Mutex) {
         // ensure that the mutex is already locked
         precondition(
@@ -195,50 +262,3 @@ final class Condition {
     }
 
 }
-
-#if !os(Windows)
-    func getTimeSpec(with timeout: TimeDuration) -> timespec {
-
-        // helps convert seconds into nanoseconds
-        let nsecsPerSec: Int = 1_000_000_000
-
-        let timeoutAbs: timespec
-        let allNanoSecs: Int
-
-        #if canImport(Darwin) || os(macOS)
-
-            // get the current time
-            var currentTime: timeval = timeval()
-            gettimeofday(&currentTime, nil)
-
-            // convert into nanoseconds
-            allNanoSecs = timeout.timeInNano + (Int(currentTime.tv_usec) * 1000)
-
-            // calculate the timespec from the argument passed
-            timeoutAbs = timespec(
-                tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
-                tv_nsec: allNanoSecs % nsecsPerSec)
-
-        #elseif os(Linux) || canImport(Musl) || canImport(Glibc)
-
-            // get the current time
-            var currentTime: timespec = timespec(tv_sec: 0, tv_nsec: 0)
-            clock_gettime(CLOCK_REALTIME, &currentTime)
-
-            // convert into nanoseconds
-            allNanoSecs = timeout.timeInNano + Int(currentTime.tv_nsec)
-
-            // calculate the timespec from the argument passed
-            timeoutAbs = timespec(
-                tv_sec: currentTime.tv_sec + (allNanoSecs / nsecsPerSec),
-                tv_nsec: allNanoSecs % nsecsPerSec
-            )
-
-        #endif
-
-        assert(timeoutAbs.tv_nsec >= 0 && timeoutAbs.tv_nsec < nsecsPerSec)
-        assert(timeoutAbs.tv_sec >= currentTime.tv_sec)
-
-        return timeoutAbs
-    }
-#endif

@@ -108,4 +108,22 @@ final class SynchronizationTests: XCTestCase {
         waitGroup.waitForAll()
         XCTAssertEqual(total, 55)
     }
+
+    // This is thread-safe because both read and write are done at separate times
+    func test_ThreadParker() {
+        class Box<T> {
+            var value: T
+            init(_ value: T) {
+                self.value = value
+            }
+        }
+        let boxed = Box(0)
+        let parker = ThreadParker()
+        Thread {
+            boxed.value += 1
+            parker.unpark()
+        }.start()
+        parker.park()
+        XCTAssertEqual(boxed.value, 1)
+    }
 }

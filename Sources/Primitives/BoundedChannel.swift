@@ -29,11 +29,11 @@ public struct BoundedChannel<Element> {
         }
     }
 
-    /// Initializes an instance of `BoundedChannel` type
+    /// Initialises an instance of `BoundedChannel` type
     /// - Parameter size: maximum capacity of the channel
     public init(size: Int) {
         guard size >= 1 else {
-            fatalError("Cannot initialize this channel with capacity less than 1")
+            fatalError("Cannot initialise this channel with capacity less than 1")
         }
         storage = MultiElementStorage(capacity: size)
         sendCondition = Condition()
@@ -46,7 +46,7 @@ public struct BoundedChannel<Element> {
             guard !storage.closed else {
                 return false
             }
-            sendCondition.wait(mutex: mutex, condition: storage.send || storage.closed)
+            sendCondition.wait(mutex: mutex, for: storage.send || storage.closed)
             guard !storage.closed else {
                 return false
             }
@@ -66,7 +66,7 @@ public struct BoundedChannel<Element> {
             guard !storage.closed else {
                 return storage.dequeue()
             }
-            receiveCondition.wait(mutex: mutex, condition: storage.receive || storage.closed)
+            receiveCondition.wait(mutex: mutex, for: storage.receive || storage.closed)
             storage.bufferCount -= 1
             if storage.bufferCount == 0 {
                 storage.receive = false
@@ -78,13 +78,13 @@ public struct BoundedChannel<Element> {
     }
 
     public func clear() {
-        mutex.whileLockedVoid {
+        mutex.whileLocked {
             storage.clear()
         }
     }
 
     public func close() {
-        mutex.whileLockedVoid {
+        mutex.whileLocked {
             storage.closed = true
             sendCondition.broadcast()
             receiveCondition.broadcast()
@@ -119,4 +119,3 @@ extension BoundedChannel {
 }
 
 extension BoundedChannel: Channel {}
-

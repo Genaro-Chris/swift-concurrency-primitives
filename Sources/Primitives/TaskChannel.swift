@@ -1,56 +1,46 @@
 import Foundation
 
-final class TaskChannel {
+struct TaskChannel {
 
-    let mutex: Mutex
-
-    let condition: Condition
-
-    var buffer: ContiguousArray<() -> Void>
-
-    var closed: Bool
+    let bufferLock: ConditionalLockBuffer<Storage<() -> Void>>
 
     var isEmpty: Bool {
-        return mutex.whileLocked {
-            return buffer.isEmpty
+        return bufferLock.interactWhileLocked { buffer, _ in
+            buffer.isEmpty
         }
     }
 
     init() {
-        buffer = ContiguousArray()
-        mutex = Mutex()
-        condition = Condition()
-        closed = false
+        bufferLock = ConditionalLockBuffer.create(value: Storage())
     }
 
     func enqueue(_ item: @escaping () -> Void) {
-        mutex.whileLockedVoid {
-            buffer.append(item)
+        bufferLock.interactWhileLocked { buffer, conditionLock in
+            buffer.enqueue(item)
             if buffer.count == 1 {
-                condition.signal()
+                conditionLock.signal()
             }
         }
     }
 
     func dequeue() -> (() -> Void)? {
-        mutex.whileLocked {
-            condition.wait(mutex: mutex, condition: !buffer.isEmpty || closed)
-            guard !buffer.isEmpty else { return nil }
-            return buffer.removeFirst()
+        bufferLock.interactWhileLocked { buffer, conditionLock in
+            conditionLock.wait(for: !buffer.isEmpty || buffer.closed)
+            return buffer.dequeue()
         }
     }
 
     func clear() {
-        mutex.whileLockedVoid {
-            buffer.removeAll()
+        bufferLock.interactWhileLocked { buffer, _ in
+            buffer.clear()
         }
     }
 
     func end() {
-        mutex.whileLockedVoid {
-            closed = true
-            buffer.removeAll()
-            condition.signal()
+        bufferLock.interactWhileLocked { buffer, conditionLock in
+            buffer.closed = true
+            buffer.clear()
+            conditionLock.signal()
         }
     }
 }

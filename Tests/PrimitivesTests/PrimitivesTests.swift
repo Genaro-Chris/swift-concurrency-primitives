@@ -53,22 +53,21 @@ final class PrimitivesTests: XCTestCase {
     func test_Barrier() {
         let barrier = Barrier(size: 2)
         let semaphore = LockSemaphore(size: 10)
-        let lock = Lock()
-        var total = 0
-        XCTAssertNotNil(barrier)
-        (1...10).forEach { index in
-            Thread { [semaphore] in
+        @Locked var total = 0
+        let handles = (1...10).map { index in
+            Thread { [semaphore, barrier] in
                 defer {
                     semaphore.notify()
                 }
-                lock.whileLocked {
-                    total += 1
+                $total.updateWhileLocked {
+                    $0 += 1
                 }
                 print("Wait blocker \(index)")
                 barrier.arriveAndWait()
                 print("After blocker \(index)")
-            }.start()
+            }
         }
+        handles.forEach { $0.start() }
         semaphore.waitForAll()
         XCTAssertEqual(total, 10)
     }
@@ -98,6 +97,27 @@ final class PrimitivesTests: XCTestCase {
         print("After blocker \(10)")
         waitGroup.waitForAll()
         XCTAssertEqual(total, 10)
+    }
+
+    func test_Condition_With_Condition() {
+        let condition = Condition()
+        let lock = Mutex()
+        var total = 0
+        let threadHanddles = (1...5).map { index in
+            Thread {
+                lock.whileLocked {
+                    total += index
+                    if total == 15 {
+                        condition.signal()
+                    }
+                }
+            }
+        }
+        threadHanddles.forEach { $0.start() }
+        lock.whileLocked {
+            condition.wait(mutex: lock, for: total == 15)
+        }
+        XCTAssertEqual(total, 15)
     }
 
     func test_Condition_Signal() {
@@ -152,7 +172,7 @@ final class PrimitivesTests: XCTestCase {
         let condition = Condition()
         let lock = Mutex()
         let total = 0
-        let threadHandles = (1...5).map { index in
+        (1...5).forEach { index in
             Thread {
                 defer {
                     print("Thread \(index) done")
@@ -163,16 +183,41 @@ final class PrimitivesTests: XCTestCase {
                         condition.signal()
                     }
                 }
-            }
+            }.start()
         }
-
-        threadHandles.forEach { $0.start() }
 
         lock.whileLocked {
-            _ = condition.wait(mutex: lock, timeout: .milliseconds(1200))
+            condition.wait(mutex: lock)
         }
 
-        threadHandles.forEach { $0.cancel() }
+        lock.whileLocked {
+            XCTAssertEqual(total, 0)
+        }
+    }
+
+    func test_Condition_Wait_TimeOut() {
+        let condition = Condition()
+        let lock = Mutex()
+        var total = 0
+        (1...5).forEach { index in
+            Thread {
+                defer {
+                    print("Thread \(index) done")
+                }
+                lock.whileLocked {
+                    _ = condition.wait(mutex: lock, timeout: .seconds(3))
+                    if index % 5 == 0 {
+                        // condition.signal()
+                        total += 1
+                    }
+                }
+            }.start()
+        }
+
+        lock.whileLocked {
+            _ = condition.wait(mutex: lock, for: total != 0, timeout: .seconds(1))
+        }
+
         lock.whileLocked {
             XCTAssertEqual(total, 0)
         }

@@ -1,10 +1,10 @@
-# ``Primitives``
+# Primitives
 
 A concurrency primitive package written in swift for swift developers
 
 ## Overview
 
-This package provides various basic concurrency primitives such as ``Lock`` which is similar to `Mutex` in other languages, ``Locked``, ``ThreadPool``, ``Channel`` and ``Queue``. This package aims to provide concurrency primitives that are readily available in other programming languages but not in swift.
+This package provides various basic concurrency primitives such as ``Lock`` which is similar to `Mutex` in other languages, ``Locked``, ``ThreadPool``, ``Channel``, ``ThreadParker`` and ``Queue``. This package aims to provide concurrency primitives that are readily available in other programming languages but not in swift.
 
 Most of the constructs shouldn't be used in async context because they block a thread's execution flow thereby violating the swift's runtime contract: forward progress of thread execution.
 
@@ -25,6 +25,7 @@ This package even provide some constructs for threads co-ordination by waiting f
 
 - ``LockSemaphore``
 - ``WaitGroup``
+- ``ThreadParker``
 
 
 ### Message Passing 
