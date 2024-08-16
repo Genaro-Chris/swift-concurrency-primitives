@@ -105,7 +105,6 @@ final class Condition {
                 case let err: fatalError("caught error \(err) while calling pthread_cond_timedwait")
                 }
             }
-            return true
         #endif
     }
 
