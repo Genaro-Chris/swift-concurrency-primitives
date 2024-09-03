@@ -1,5 +1,5 @@
-/// A multi item storage class for ``Channel`` types
-final class MultiElementStorage<Element> {
+/// An array storage class for ``Channel`` types
+final class ArrayStorage<Element> {
 
     var buffer: ContiguousArray<Element>
 

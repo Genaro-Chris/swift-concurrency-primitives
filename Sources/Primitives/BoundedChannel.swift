@@ -12,7 +12,7 @@ import Foundation
 @_spi(OtherChannels)
 public struct BoundedChannel<Element> {
 
-    private let storage: MultiElementStorage<Element>
+    let storage: ArrayStorage<Element>
 
     let sendCondition: Condition
 
@@ -35,7 +35,7 @@ public struct BoundedChannel<Element> {
         guard size >= 1 else {
             fatalError("Cannot initialise this channel with capacity less than 1")
         }
-        storage = MultiElementStorage(capacity: size)
+        storage = ArrayStorage(capacity: size)
         sendCondition = Condition()
         receiveCondition = Condition()
         mutex = Mutex()
@@ -77,6 +77,24 @@ public struct BoundedChannel<Element> {
         }
     }
 
+    public func tryDequeue() -> Element? {
+        return mutex.whileLocked {
+            guard !storage.closed else {
+                return storage.dequeue()
+            }
+            guard let result = storage.dequeue() else {
+                return nil
+            }
+            storage.bufferCount -= 1
+            if storage.bufferCount == 0 {
+                storage.receive = false
+            }
+            storage.send = true
+            sendCondition.signal()
+            return result
+        }
+    }
+
     public func clear() {
         mutex.whileLocked {
             storage.clear()
@@ -105,7 +123,7 @@ extension BoundedChannel {
         return mutex.whileLocked { storage.closed }
     }
 
-    public var length: Int {
+    public var count: Int {
         return mutex.whileLocked {
             storage.count
         }

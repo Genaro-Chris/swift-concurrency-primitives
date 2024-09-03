@@ -207,7 +207,7 @@ final class PrimitivesTests: XCTestCase {
                 lock.whileLocked {
                     _ = condition.wait(mutex: lock, timeout: .seconds(3))
                     if index % 5 == 0 {
-                        // condition.signal()
+                        // condition.signal() // This is ensure the condition isn't wakem up
                         total += 1
                     }
                 }
@@ -215,6 +215,7 @@ final class PrimitivesTests: XCTestCase {
         }
 
         lock.whileLocked {
+            // This will time out
             _ = condition.wait(mutex: lock, for: total != 0, timeout: .seconds(1))
         }
 

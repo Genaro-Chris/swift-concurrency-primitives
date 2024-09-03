@@ -11,23 +11,20 @@ public struct Barrier {
 
     let blockedThreadsLock: ConditionalLockBuffer<InnerState>
 
-    let threadsCount: Int
-
     /// Initialises an instance of the `Barrier` type
     /// - Parameter size: the number of threads to use
     public init(size: Int) {
         guard size >= 1 else {
             fatalError("Cannot initialise an instance of Barrier with a size less than 1")
         }
-        threadsCount = size
-        blockedThreadsLock = ConditionalLockBuffer.create(value: InnerState())
+        blockedThreadsLock = ConditionalLockBuffer.create(value: InnerState(size: size))
     }
 
     /// Increments the count of an `Barrier` instance without blocking the current thread
     public func arriveAlone() {
         blockedThreadsLock.interactWhileLocked { inner, conditionLock in
             inner.incrementCounter()
-            guard inner.counter == threadsCount else {
+            guard inner.counter == inner.threadsCount else {
                 return
             }
             inner.resetCounter()
@@ -42,7 +39,7 @@ public struct Barrier {
         blockedThreadsLock.interactWhileLocked { inner, conditionLock in
             let currentGeneration: Int = inner.generation
             inner.incrementCounter()
-            guard inner.counter == threadsCount else {
+            guard inner.counter == inner.threadsCount else {
                 conditionLock.wait(until: currentGeneration == inner.generation)
                 return
             }
@@ -60,9 +57,12 @@ struct InnerState {
     // Flag to differentiate barrier generations (avoid race conditions)
     private(set) var generation: Int
 
-    init() {
+    let threadsCount: Int
+
+    init(size: Int) {
         counter = 0
         generation = 0
+        threadsCount = size
     }
 
     mutating func incrementCounter() {

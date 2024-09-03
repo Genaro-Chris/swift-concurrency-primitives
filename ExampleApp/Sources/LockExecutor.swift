@@ -1,5 +1,5 @@
 import Foundation
-@preconcurrency import Primitives
+import Primitives
 
 /// The class enqueueing jobs onto the `CustomGlobalExecutor` pool with some lock which means only one job can run
 /// at any given time

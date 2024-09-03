@@ -85,9 +85,9 @@ public struct ThreadParker {
             if case Stage.parked = stage {
                 // send notification
                 stage.set(to: .unparked)
-                // unpark the parked thread
-                conditionLock.signal()
             }
+            // unpark the parked thread
+            conditionLock.signal()
         }
     }
 }

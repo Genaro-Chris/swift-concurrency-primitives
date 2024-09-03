@@ -24,6 +24,8 @@ public final class WorkerThread {
 
     let waitType: WaitType
 
+    let onceFlag: OnceState
+
     /// Initialises an instance of `WorkerThread` type
     /// - Parameters:
     ///   - waitType: value of `WaitType`
@@ -31,14 +33,26 @@ public final class WorkerThread {
         self.waitType = waitType
         taskChannel = TaskChannel()
         waitgroup = WaitGroup()
-        start(channel: taskChannel)
+        onceFlag = OnceState()
     }
 
     deinit {
+        guard onceFlag.hasExecuted else {
+            return
+        }
         if case .waitForAll = waitType {
             pollAll()
         }
         taskChannel.end()
+    }
+
+    func submitTask(_ body: @escaping () -> Void) {
+        onceFlag.runOnce {
+            Thread { [taskChannel] in
+                while let task = taskChannel.dequeue() { task() }
+            }.start()
+        }
+        taskChannel.enqueue(body)
     }
 
 }
@@ -50,22 +64,19 @@ extension WorkerThread: ThreadPool {
     }
 
     public func submit(_ body: @escaping () -> Void) {
-        taskChannel.enqueue(body)
+        submitTask(body)
     }
 
     public func async(_ body: @escaping @Sendable () -> Void) {
-        taskChannel.enqueue(body)
+        submitTask(body)
     }
 
     public func pollAll() {
+        guard onceFlag.hasExecuted else {
+            return
+        }
         waitgroup.enter()
         taskChannel.enqueue { [waitgroup] in waitgroup.done() }
         waitgroup.waitForAll()
     }
-}
-
-private func start(channel: TaskChannel) {
-    Thread { [channel] in
-        while let task = channel.dequeue() { task() }
-    }.start()
 }

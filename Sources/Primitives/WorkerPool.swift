@@ -22,6 +22,8 @@ public final class WorkerPool {
 
     let indexer: Locked<Int>
 
+    let onceFlag = OnceState()
+
     let waitType: WaitType
 
     static let shared: WorkerPool = WorkerPool(size: ProcessInfo.processInfo.activeProcessorCount)
@@ -36,11 +38,14 @@ public final class WorkerPool {
         }
         self.waitType = waitType
         waitGroup = WaitGroup()
-        taskChannels = start(size: size)
+        taskChannels = (1...size).map { _ in TaskChannel() }
         indexer = Locked(initialValue: 0)
     }
 
     deinit {
+        guard onceFlag.hasExecuted else {
+            return
+        }
         if case .waitForAll = waitType {
             pollAll()
         }
@@ -58,8 +63,19 @@ public final class WorkerPool {
         guard (0..<taskChannels.count).contains(index) else {
             return false
         }
-        taskChannels[index].enqueue(body)
+        submitTask(at: index, body)
         return true
+    }
+
+    func submitTask(at index: Int, _ body: @escaping () -> Void) {
+        onceFlag.runOnce {
+            taskChannels.forEach { channel in
+                Thread { [channel] in
+                    while let task = channel.dequeue() { task() }
+                }.start()
+            }
+        }
+        taskChannels[index].enqueue(body)
     }
 
     // Ensures that the index is accessed in a data race free manner
@@ -84,11 +100,11 @@ extension WorkerPool {
 extension WorkerPool: ThreadPool {
 
     public func async(_ body: @escaping @Sendable () -> Void) {
-        taskChannels[currentIndex()].enqueue(body)
+        submitTask(at: currentIndex(), body)
     }
 
     public func submit(_ body: @escaping () -> Void) {
-        taskChannels[currentIndex()].enqueue(body)
+        submitTask(at: currentIndex(), body)
     }
 
     public func cancel() {
@@ -96,20 +112,13 @@ extension WorkerPool: ThreadPool {
     }
 
     public func pollAll() {
+        guard onceFlag.hasExecuted else {
+            return
+        }
         taskChannels.forEach { taskChannel in
             waitGroup.enter()
             taskChannel.enqueue { [waitGroup] in waitGroup.done() }
         }
         waitGroup.waitForAll()
-    }
-}
-
-private func start(size: Int) -> [TaskChannel] {
-    (0..<size).map { _ in
-        let channel: TaskChannel = TaskChannel()
-        Thread { [channel] in
-            while let task = channel.dequeue() { task() }
-        }.start()
-        return channel
     }
 }

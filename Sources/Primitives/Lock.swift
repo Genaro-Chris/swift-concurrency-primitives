@@ -74,3 +74,5 @@ public struct Lock {
     }
 
 }
+
+extension Lock: @unchecked Sendable {}

@@ -27,7 +27,7 @@ public final class CustomGlobalExecutor: SerialExecutor {
 }
 
 /// Does what the name implies
-func replacesSwiftGlobalConcurrencyExecutor() {
+func replaceSwiftGlobalConcurrencyExecutor() {
     // This ensures that we only replace the global concurrency hook only once per process
     Once.runOnce {
         typealias EnqueueOriginal = @convention(thin) (UnownedJob) -> Void

@@ -18,7 +18,7 @@ public protocol Channel {
     var isEmpty: Bool { get }
 
     /// Number of items in the `Channel` instance
-    var length: Int { get }
+    var count: Int { get }
 
     /// Enqueues an item into the `Channel` instance
     /// - Parameter item: item to be enqueued
@@ -31,11 +31,16 @@ public protocol Channel {
     /// that is by calling it's `close` method
     func dequeue() -> Element?
 
+    /// Dequeues an item from the `Channel` instance
+    ///  without blocking the current thread
+    /// - Returns: an item or nil if the `Channel` instance is empty
+    func tryDequeue() -> Element?
+
     /// Clears the remaining enqueued items if any are remaining
     func clear()
 
     /// Closes the `Channel` instance
-    /// 
+    ///
     /// This unblocks both the sending and receiving operations of the `Channel` instance
     /// thereby making the channel unable to receive any more items
     func close()

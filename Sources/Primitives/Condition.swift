@@ -46,9 +46,7 @@ final class Condition {
             InitializeConditionVariable(condition)
         #else
             condition.initialize(to: pthread_cond_t())
-            var conditionAttr: pthread_condattr_t = pthread_condattr_t()
-            pthread_condattr_init(&conditionAttr)
-            let err: Int32 = pthread_cond_init(condition, &conditionAttr)
+            let err: Int32 = pthread_cond_init(condition, nil)
             precondition(err == 0, "Couldn't initialise pthread_cond due to \(err)")
         #endif
 

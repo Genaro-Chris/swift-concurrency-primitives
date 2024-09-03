@@ -1,11 +1,11 @@
-final class LockBuffer<Value>: ManagedBuffer<Value, Mutex> {
+final class LockBuffer<Value>: ManagedBuffer<Mutex, Value> {
 
     static func create(value: Value) -> Self {
         let buffer = Self.create(minimumCapacity: 1) { buffer in
-            buffer.withUnsafeMutablePointers { _, lockPtr in
-                lockPtr.initialize(to: Mutex())
+            buffer.withUnsafeMutablePointerToElements { valuePtr in
+                valuePtr.initialize(to: value)
             }
-            return value
+            return Mutex()
         }
 
         let storage = unsafeDowncast(buffer, to: Self.self)
@@ -14,28 +14,29 @@ final class LockBuffer<Value>: ManagedBuffer<Value, Mutex> {
     }
 
     deinit {
-        self.withUnsafeMutablePointerToElements { lock in
-            _ = lock.move()
+        self.withUnsafeMutablePointerToElements { value in
+            // This ensures the element's pointee instance deinitializer is called
+            _ = value.move()
         }
     }
 
     func interactWhileLocked<V>(_ body: (inout Value, Mutex) throws -> V) rethrows -> V {
-        return try self.withUnsafeMutablePointers { header, lock in
-            try lock.pointee.whileLocked {
-                try body(&header.pointee, lock.pointee)
+        return try self.withUnsafeMutablePointerToElements { value in
+            try self.header.whileLocked {
+                try body(&value.pointee, self.header)
             }
         }
     }
 }
 
-final class ConditionalLockBuffer<Value>: ManagedBuffer<Value, ConditionLock> {
+final class ConditionalLockBuffer<Value>: ManagedBuffer<ConditionLock, Value> {
 
     static func create(value: Value) -> Self {
         let buffer = Self.create(minimumCapacity: 1) { buffer in
-            buffer.withUnsafeMutablePointers { _, lockPtr in
-                lockPtr.initialize(to: ConditionLock())
+            buffer.withUnsafeMutablePointerToElements { valuePtr in
+                valuePtr.initialize(to: value)
             }
-            return value
+            return ConditionLock()
         }
 
         let storage = unsafeDowncast(buffer, to: Self.self)
@@ -44,15 +45,16 @@ final class ConditionalLockBuffer<Value>: ManagedBuffer<Value, ConditionLock> {
     }
 
     deinit {
-        self.withUnsafeMutablePointerToElements { lock in
-            _ = lock.move()
+        self.withUnsafeMutablePointerToElements { value in
+            // This ensures the element's pointee instance deinitializer is called
+            _ = value.move()
         }
     }
 
     func interactWhileLocked<V>(_ body: (inout Value, ConditionLock) -> V) -> V {
-        return self.withUnsafeMutablePointers { header, lock in
-            lock.pointee.whileLocked {
-                body(&header.pointee, lock.pointee)
+        return self.withUnsafeMutablePointerToElements { value in
+            self.header.whileLocked {
+                body(&value.pointee, self.header)
             }
         }
     }

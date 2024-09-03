@@ -59,21 +59,14 @@
 ///
 @propertyWrapper
 @dynamicMemberLookup
-public struct Locked<Element>: @unchecked Sendable {
+public final class Locked<Element> {
 
     let valueLock: LockBuffer<Element>
 
     /// The value which can be accessed safely in multithreaded context
     public var wrappedValue: Element {
-        get {
-            return updateWhileLocked { value in
-                value
-            }
-        }
-        set {
-            updateWhileLocked { value in
-                value = newValue
-            }
+        return updateWhileLocked { value in
+            value
         }
     }
 
@@ -83,7 +76,7 @@ public struct Locked<Element>: @unchecked Sendable {
     }
 
     /// Initialises an instance of the `Locker` type with a value to be protected
-    public init(wrappedValue value: Element) {
+    public convenience init(wrappedValue value: Element) {
         self.init(initialValue: value)
     }
 
@@ -112,3 +105,5 @@ extension Locked {
         updateWhileLocked { $0[keyPath: memberKeyPath] }
     }
 }
+
+extension Locked: @unchecked Sendable {}

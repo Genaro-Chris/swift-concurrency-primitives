@@ -27,20 +27,13 @@ final class ConditionLock {
             var err: Int32 = 0
 
             condition.initialize(to: pthread_cond_t())
-            var conditionAttr: pthread_condattr_t = pthread_condattr_t()
-
             mutex.initialize(to: pthread_mutex_t())
-            var mutexAttr: pthread_mutexattr_t = pthread_mutexattr_t()
-            pthread_mutexattr_settype(&mutexAttr, .init(PTHREAD_MUTEX_NORMAL))
-            pthread_mutexattr_init(&mutexAttr)
 
-            pthread_condattr_init(&conditionAttr)
-            err = pthread_cond_init(condition, &conditionAttr)
+            err = pthread_cond_init(condition, nil)
             precondition(err == 0, "Couldn't initialise pthread_cond due to \(err)")
 
-            err = pthread_mutex_init(mutex, &mutexAttr)
+            err = pthread_mutex_init(mutex, nil)
             precondition(err == 0, "Couldn't initialise pthread_mutex due to \(err)")
-            pthread_mutexattr_destroy(&mutexAttr)
         #endif
     }
 

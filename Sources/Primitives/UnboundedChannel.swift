@@ -12,11 +12,11 @@ import Foundation
 /// message passing
 public struct UnboundedChannel<Element> {
 
-    let storageLock: ConditionalLockBuffer<MultiElementStorage<Element>>
+    let storageLock: ConditionalLockBuffer<ArrayStorage<Element>>
 
     /// Initialises an instance of `UnboundedChannel` type
     public init() {
-        storageLock = ConditionalLockBuffer.create(value: MultiElementStorage(capacity: 0))
+        storageLock = ConditionalLockBuffer.create(value: ArrayStorage(capacity: 0))
     }
 
     public func enqueue(item: Element) -> Bool {
@@ -39,6 +39,19 @@ public struct UnboundedChannel<Element> {
                 return storage.dequeue()
             }
             conditionLock.wait(for: storage.receive || storage.closed)
+            let result: Element? = storage.dequeue()
+            if storage.isEmpty {
+                storage.receive = false
+            }
+            return result
+        }
+    }
+
+    public func tryDequeue() -> Element? {
+        storageLock.interactWhileLocked { storage, conditionLock in
+            guard !storage.closed else {
+                return storage.dequeue()
+            }
             let result: Element? = storage.dequeue()
             if storage.isEmpty {
                 storage.receive = false
@@ -75,7 +88,7 @@ extension UnboundedChannel {
         }
     }
 
-    public var length: Int {
+    public var count: Int {
         return storageLock.interactWhileLocked { storage, _ in storage.count }
     }
 

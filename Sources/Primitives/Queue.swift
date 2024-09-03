@@ -57,7 +57,7 @@ extension Queue {
     }
 
     /// Number of items in the `Queue` instance
-    public var length: Int {
+    public var count: Int {
         return storageLock.interactWhileLocked { storage, _ in storage.count }
     }
 

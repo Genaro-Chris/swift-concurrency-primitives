@@ -18,7 +18,7 @@ import Foundation
 @_spi(OtherChannels)
 public struct UnbufferedChannel<Element> {
 
-    private let storage: SingleItemStorage<Element>
+    let storage: SingleItemStorage<Element>
 
     let mutex: Mutex
 
@@ -70,6 +70,24 @@ public struct UnbufferedChannel<Element> {
         }
     }
 
+    public func tryDequeue() -> Element? {
+        return mutex.whileLocked {
+            guard !storage.closed else {
+                let result: Element? = storage.value
+                storage.value = nil
+                return result
+            }
+            let result: Element? = storage.value
+            storage.value = nil
+            if !storage.closed {
+                storage.send = true
+                storage.receive = false
+            }
+            sendCondition.signal()
+            return result
+        }
+    }
+
     public func clear() {
         mutex.whileLocked {
             storage.value = nil
@@ -101,7 +119,7 @@ extension UnbufferedChannel {
         return mutex.whileLocked { storage.closed }
     }
 
-    public var length: Int {
+    public var count: Int {
         return mutex.whileLocked {
             switch storage.value {
             case .none: return 0

@@ -26,7 +26,7 @@ import Foundation
 /// ```
 public struct OneShotChannel<Element> {
 
-    private let storageLock: ConditionalLockBuffer<SingleItemStorage<Element>>
+    let storageLock: ConditionalLockBuffer<SingleItemStorage<Element>>
 
     /// Initialises an instance of `OneShotChannel` type
     public init() {
@@ -52,6 +52,14 @@ public struct OneShotChannel<Element> {
     public func dequeue() -> Element? {
         return storageLock.interactWhileLocked { storage, conditionLock in
             conditionLock.wait(for: storage.receive || storage.closed)
+            let result: Element? = storage.value
+            storage.value = nil
+            return result
+        }
+    }
+
+    public func tryDequeue() -> Element? {
+        return storageLock.interactWhileLocked { storage, conditionLock in
             let result: Element? = storage.value
             storage.value = nil
             return result
@@ -90,7 +98,7 @@ extension OneShotChannel {
         return storageLock.interactWhileLocked { storage, _ in storage.closed }
     }
 
-    public var length: Int {
+    public var count: Int {
         return storageLock.interactWhileLocked { storage, _ in
             switch storage.value {
             case .none: return 0
