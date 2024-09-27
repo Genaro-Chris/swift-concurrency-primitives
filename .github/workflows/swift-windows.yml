@@ -23,6 +23,6 @@ jobs:
           branch: swift-${{ matrix.swift_version }}-release
           tag: ${{ matrix.swift_version }}-RELEASE
       - name: Building in debug mode
-        run: swift build
+        run: swift build --build-tests
       - name: Running tests in debug mode
         run: swift test

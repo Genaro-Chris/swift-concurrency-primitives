@@ -32,6 +32,12 @@ Then add the `Primitives` library to the target(s) you want to use it
 .product(name: "Primitives", package: "swift-concurrency-primitives")
 ```
 
+Then finally
+
+```swift
+import Primitives
+```
+
 # Features
 
 This package provides various basic concurrency primitives which can be categorized into the following
