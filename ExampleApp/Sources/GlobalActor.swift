@@ -2,7 +2,7 @@ import Foundation
 import Primitives
 
 /// Sample global actor that uses the `LockCustomExecutor` as its SerialExecutor
-@globalActor actor GlobalActor {
+@globalActor actor CustomGlobalActor {
 
     let executor = LockCustomExecutor()
 
@@ -10,5 +10,5 @@ import Primitives
         UnownedSerialExecutor(ordinary: executor)
     }
 
-    static let shared = GlobalActor()
+    static let shared = CustomGlobalActor()
 }

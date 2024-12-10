@@ -1,4 +1,7 @@
 import Foundation
+#if compiler(>=6)
+import CoreFoundation
+#endif
 @_spi(ThreadSync) import Primitives
 
 final class NamedThread: Thread {

@@ -73,6 +73,40 @@ public struct Lock {
         return try lock.whileLocked(body)
     }
 
-}
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: closure to be executed while being protected by the lock
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    public func whileLockedVoid(_ body: () throws -> Void) rethrows {
+        try lock.whileLockedVoid(body)
+    }
 
-extension Lock: @unchecked Sendable {}
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: async closure to be executed while being protected by the lock
+    /// - Returns: value returned from the closure passed as argument
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    public func whileLocked<T>(_ body: () async throws -> T) async rethrows -> T {
+        return try await lock.whileLocked(body)
+    }
+
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: async closure to be executed while being protected by the lock
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    public func whileLockedVoid(_ body: () async throws -> Void) async rethrows {
+        try await lock.whileLockedVoid(body)
+    }
+}

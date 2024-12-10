@@ -12,7 +12,10 @@ let package = Package(
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "Primitives",
-            targets: ["Primitives"])
+            targets: ["Primitives"]),
+        .library(
+            name: "Yield",
+            targets: ["Yield"]),
     ],
     dependencies: [],
     targets: [
@@ -20,8 +23,12 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "Primitives",
-            dependencies: []
+            dependencies: [
+                "Yield"
+            ]
         ),
+        .target(
+            name: "Yield"),
         .testTarget(
             name: "Primitives-Tests",
             dependencies: ["Primitives"],

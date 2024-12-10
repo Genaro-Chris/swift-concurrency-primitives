@@ -100,4 +100,55 @@ final class Mutex {
         }
         return try body()
     }
+
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: closure to be executed while being protected by the lock
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    @inlinable
+    func whileLockedVoid(_ body: () throws -> Void) rethrows {
+        lock()
+        defer {
+            unlock()
+        }
+        return try body()
+    }
+
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: async closure to be executed while being protected by the lock
+    /// - Returns: value returned from the body closure
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    func whileLocked<T>(_ body: () async throws -> T) async rethrows -> T {
+        lock()
+        defer {
+            unlock()
+        }
+        return try await body()
+    }
+
+    /// Tries to acquire the lock for the duration for the closure passed as
+    /// argument and releases the lock immediately after the closure has finished
+    /// its execution regardless of how it finishes
+    ///
+    /// - Parameter body: async closure to be executed while being protected by the lock
+    ///
+    /// # Warning
+    /// Avoid calling long running or blocking code while using this function
+    @inlinable
+    func whileLockedVoid(_ body: () async throws -> Void) async rethrows {
+        lock()
+        defer {
+            unlock()
+        }
+        return try await body()
+    }
 }

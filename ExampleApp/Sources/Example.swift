@@ -2,7 +2,7 @@ import Foundation
 import Primitives
 
 /// a global variable isolated to `GlobalActor`
-@GlobalActor var globalActorCounter = 0
+@CustomGlobalActor var globalActorCounter = 0
 
 let lockedValue = Locked(initialValue: 0)
 
@@ -25,7 +25,7 @@ enum Program {
 
         replaceSwiftGlobalConcurrencyExecutor()
 
-        Task { @GlobalActor in
+        Task { @CustomGlobalActor in
             globalActorCounter += 10
         }
 
@@ -58,7 +58,7 @@ enum Program {
         await withDiscardingTaskGroup { group in
             for _ in 0...5 {
                 group.addTask {
-                    Task { @GlobalActor in globalActorCounter += 1 }
+                    Task { @CustomGlobalActor in globalActorCounter += 1 }
                     await specialActorInstance.increment(by: Int.random(in: 1...10))
                     await lockInstance.increment(by: Int.random(in: 1...10))
                     await normalActor.increment(by: Int.random(in: 1...10))
